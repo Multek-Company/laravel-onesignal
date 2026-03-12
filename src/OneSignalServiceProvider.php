@@ -4,6 +4,7 @@ namespace Multek\OneSignal;
 
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
+use Multek\CustomerEngagement\EngagementManager;
 use Multek\OneSignal\Channels\OneSignalChannel;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\Configuration;
@@ -42,5 +43,12 @@ class OneSignalServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/onesignal.php' => config_path('onesignal.php'),
         ], 'onesignal-config');
+
+        // Register as a customer engagement driver
+        if ($this->app->bound(EngagementManager::class)) {
+            $this->app->make(EngagementManager::class)->extend('onesignal', function ($app) {
+                return new OneSignalDriver($app->make(OneSignalManager::class));
+            });
+        }
     }
 }

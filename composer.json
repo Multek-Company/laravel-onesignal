@@ -7,7 +7,8 @@
         "php": "^8.2",
         "illuminate/support": "^11.0|^12.0",
         "illuminate/notifications": "^11.0|^12.0",
-        "onesignal/onesignal-php-api": "^5.0@beta"
+        "onesignal/onesignal-php-api": "^5.0@beta",
+        "multek/laravel-customer-engagement": "^1.0"
     },
     "autoload": {
         "psr-4": {
