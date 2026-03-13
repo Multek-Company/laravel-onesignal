@@ -3,6 +3,15 @@
     "description": "Laravel wrapper for the official OneSignal PHP SDK",
     "type": "library",
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../laravel-customer-engagement",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
         "php": "^8.2",
         "illuminate/support": "^11.0|^12.0",
