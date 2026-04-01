@@ -19,6 +19,11 @@
         "onesignal/onesignal-php-api": "^5.0@beta",
         "multek/laravel-customer-engagement": "^1.0|@dev"
     },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "laravel/pint": "^1.0"
+    },
     "autoload": {
         "psr-4": {
             "Multek\\OneSignal\\": "src/"
@@ -32,6 +37,20 @@
             "aliases": {
                 "OneSignal": "Multek\\OneSignal\\Facades\\OneSignal"
             }
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Multek\\OneSignal\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     },
     "minimum-stability": "stable",

@@ -58,7 +58,7 @@ OneSignal::sendToSegment('Active Users', 'New feature available!');
 // Fluent builder for complex notifications
 OneSignal::notification()
     ->toUser('user_123')
-    ->title('Order Shipped')
+    ->heading('Order Shipped')
     ->body('Your order #456 has been shipped.')
     ->data(['order_id' => 456])
     ->send();
@@ -122,7 +122,7 @@ class OrderShipped extends Notification
     public function toOneSignal($notifiable): OneSignalMessage
     {
         return (new OneSignalMessage)
-            ->title('Order Shipped')
+            ->heading('Order Shipped')
             ->body('Your order has been shipped.');
     }
 }
