@@ -7,6 +7,7 @@ use Multek\OneSignal\OneSignalDriver;
 use Multek\OneSignal\OneSignalManager;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\model\CreateNotificationSuccessResponse;
+use onesignal\client\model\PropertiesBody;
 use onesignal\client\model\User as OneSignalUser;
 
 beforeEach(function () {
@@ -22,7 +23,7 @@ it('returns driver name', function () {
 // ── SyncsUsers contract ──
 
 it('gets a user', function () {
-    $user = new OneSignalUser();
+    $user = new OneSignalUser;
     $user->setIdentity(['external_id' => 'user_123']);
 
     $this->api->shouldReceive('getUser')
@@ -55,7 +56,7 @@ it('creates a user from Customer DTO', function () {
                 && $tags['phone'] === '+5511999999999'
                 && $tags['name'] === 'John Doe';
         })
-        ->andReturn(new OneSignalUser());
+        ->andReturn(new OneSignalUser);
 
     $result = $this->driver->createUser($customer);
 
@@ -70,7 +71,7 @@ it('updates a user from Customer DTO', function () {
 
     $this->api->shouldReceive('updateUser')
         ->once()
-        ->andReturn(new OneSignalUser());
+        ->andReturn(new PropertiesBody);
 
     $result = $this->driver->updateUser($customer);
 
@@ -90,7 +91,7 @@ it('deletes a user', function () {
 it('sends notification to a single user', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-1');
 
     $this->api->shouldReceive('createNotification')
@@ -111,7 +112,7 @@ it('sends notification to a single user', function () {
 it('sends notification to multiple users', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-2');
 
     $this->api->shouldReceive('createNotification')
@@ -128,7 +129,7 @@ it('sends notification to multiple users', function () {
 it('sends notification to a segment', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-3');
 
     $this->api->shouldReceive('createNotification')
@@ -145,7 +146,7 @@ it('sends notification to a segment', function () {
 it('passes all notification fields to builder', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-full');
 
     $this->api->shouldReceive('createNotification')

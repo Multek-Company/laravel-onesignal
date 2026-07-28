@@ -6,6 +6,8 @@ use Multek\OneSignal\Events\NotificationSent;
 use Multek\OneSignal\OneSignalManager;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\model\CreateNotificationSuccessResponse;
+use onesignal\client\model\PropertiesBody;
+use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
 beforeEach(function () {
@@ -28,7 +30,7 @@ it('creates a notification builder', function () {
 it('sends notification and dispatches sent event', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-123');
 
     $this->api->shouldReceive('createNotification')
@@ -63,7 +65,7 @@ it('dispatches failed event on notification error', function () {
 it('sends to multiple users', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-456');
 
     $this->api->shouldReceive('createNotification')
@@ -78,7 +80,7 @@ it('sends to multiple users', function () {
 it('sends to segment', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-789');
 
     $this->api->shouldReceive('createNotification')
@@ -93,7 +95,7 @@ it('sends to segment', function () {
 // ── User Management ──
 
 it('gets a user', function () {
-    $user = new OneSignalUser();
+    $user = new OneSignalUser;
 
     $this->api->shouldReceive('getUser')
         ->with('test-app-id', 'external_id', 'user_123')
@@ -106,7 +108,7 @@ it('gets a user', function () {
 });
 
 it('creates a user with tags', function () {
-    $user = new OneSignalUser();
+    $user = new OneSignalUser;
 
     $this->api->shouldReceive('createUser')
         ->once()
@@ -118,7 +120,7 @@ it('creates a user with tags', function () {
 });
 
 it('creates a user without tags', function () {
-    $user = new OneSignalUser();
+    $user = new OneSignalUser;
 
     $this->api->shouldReceive('createUser')
         ->once()
@@ -130,31 +132,37 @@ it('creates a user without tags', function () {
 });
 
 it('updates user tags', function () {
-    $user = new OneSignalUser();
+    $response = new PropertiesBody;
 
     $this->api->shouldReceive('updateUser')
-        ->with('test-app-id', 'external_id', 'user_123', Mockery::type(OneSignalUser::class))
+        ->with('test-app-id', 'external_id', 'user_123', Mockery::on(function ($request) {
+            return $request instanceof UpdateUserRequest
+                && $request->getProperties()->getTags() === ['plan' => 'enterprise'];
+        }))
         ->once()
-        ->andReturn($user);
+        ->andReturn($response);
 
     $result = $this->manager->updateUserTags('user_123', ['plan' => 'enterprise']);
 
-    expect($result)->toBeInstanceOf(OneSignalUser::class);
+    expect($result)->toBeInstanceOf(PropertiesBody::class);
 });
 
 it('removes user tags by setting empty strings', function () {
-    $user = new OneSignalUser();
+    $response = new PropertiesBody;
 
     $this->api->shouldReceive('updateUser')
         ->once()
-        ->withArgs(function ($appId, $type, $id, $userObj) {
-            $tags = $userObj->getProperties()->getTags();
+        ->withArgs(function ($appId, $type, $id, $request) {
+            $tags = $request->getProperties()->getTags();
 
-            return $tags === ['role' => '', 'plan' => ''];
+            return $request instanceof UpdateUserRequest
+                && $tags === ['role' => '', 'plan' => ''];
         })
-        ->andReturn($user);
+        ->andReturn($response);
 
-    $this->manager->removeUserTags('user_123', ['role', 'plan']);
+    $result = $this->manager->removeUserTags('user_123', ['role', 'plan']);
+
+    expect($result)->toBeInstanceOf(PropertiesBody::class);
 });
 
 it('deletes a user', function () {

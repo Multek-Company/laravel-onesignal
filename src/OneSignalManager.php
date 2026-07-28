@@ -9,7 +9,9 @@ use onesignal\client\api\DefaultApi;
 use onesignal\client\model\CustomEvent;
 use onesignal\client\model\CustomEventsRequest;
 use onesignal\client\model\Notification;
+use onesignal\client\model\PropertiesBody;
 use onesignal\client\model\PropertiesObject;
+use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
 class OneSignalManager
@@ -148,7 +150,7 @@ class OneSignalManager
             }
         }
 
-        $request = new CustomEventsRequest();
+        $request = new CustomEventsRequest;
         $request->setEvents($sdkEvents);
 
         $this->api->createCustomEvents($this->appId, $request);
@@ -171,7 +173,7 @@ class OneSignalManager
 
     protected function buildEvent(string $externalId, string $eventName, array $payload = [], ?\DateTimeInterface $timestamp = null): CustomEvent
     {
-        $event = new CustomEvent();
+        $event = new CustomEvent;
         $event->setName($eventName);
         $event->setExternalId($externalId);
 
@@ -203,11 +205,11 @@ class OneSignalManager
      */
     public function createUser(string $externalId, array $tags = []): OneSignalUser
     {
-        $user = new OneSignalUser();
+        $user = new OneSignalUser;
         $user->setIdentity(['external_id' => $externalId]);
 
         if (! empty($tags)) {
-            $properties = new PropertiesObject();
+            $properties = new PropertiesObject;
             $properties->setTags($tags);
             $user->setProperties($properties);
         }
@@ -218,20 +220,20 @@ class OneSignalManager
     /**
      * Update tags on a user.
      */
-    public function updateUserTags(string $externalId, array $tags): OneSignalUser
+    public function updateUserTags(string $externalId, array $tags): PropertiesBody
     {
-        $user = new OneSignalUser();
-        $properties = new PropertiesObject();
+        $request = new UpdateUserRequest;
+        $properties = new PropertiesObject;
         $properties->setTags($tags);
-        $user->setProperties($properties);
+        $request->setProperties($properties);
 
-        return $this->api->updateUser($this->appId, 'external_id', $externalId, $user);
+        return $this->api->updateUser($this->appId, 'external_id', $externalId, $request);
     }
 
     /**
      * Remove tags from a user (sets them to empty string).
      */
-    public function removeUserTags(string $externalId, array $tagKeys): OneSignalUser
+    public function removeUserTags(string $externalId, array $tagKeys): PropertiesBody
     {
         return $this->updateUserTags($externalId, array_fill_keys($tagKeys, ''));
     }
