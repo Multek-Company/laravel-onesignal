@@ -131,6 +131,51 @@ it('creates a user without tags', function () {
     expect($result)->toBeInstanceOf(OneSignalUser::class);
 });
 
+it('creates a user with native properties', function () {
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(function ($appId, $userObj) {
+            $properties = $userObj->getProperties();
+
+            return $properties->getLanguage() === 'pt'
+                && $properties->getTimezoneId() === 'America/Sao_Paulo'
+                && $properties->getCountry() === 'BR'
+                && $properties->getTags() === ['plan' => 'pro'];
+        })
+        ->andReturn(new OneSignalUser);
+
+    $this->manager->createUser('user_123', ['plan' => 'pro'], [
+        'language' => 'pt',
+        'timezone_id' => 'America/Sao_Paulo',
+        'country' => 'BR',
+    ]);
+});
+
+it('updates a user with tags and native properties', function () {
+    $response = new PropertiesBody;
+
+    $this->api->shouldReceive('updateUser')
+        ->once()
+        ->withArgs(function ($appId, $type, $id, $request) {
+            $properties = $request->getProperties();
+
+            return $request instanceof UpdateUserRequest
+                && $properties->getLanguage() === 'en'
+                && $properties->getTimezoneId() === 'America/New_York'
+                && $properties->getCountry() === 'US'
+                && $properties->getTags() === ['plan' => 'enterprise'];
+        })
+        ->andReturn($response);
+
+    $result = $this->manager->updateUser('user_123', ['plan' => 'enterprise'], [
+        'language' => 'en',
+        'timezone_id' => 'America/New_York',
+        'country' => 'US',
+    ]);
+
+    expect($result)->toBeInstanceOf(PropertiesBody::class);
+});
+
 it('updates user tags', function () {
     $response = new PropertiesBody;
 

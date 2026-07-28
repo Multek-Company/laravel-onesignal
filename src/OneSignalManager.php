@@ -202,19 +202,34 @@ class OneSignalManager
 
     /**
      * Create a user in OneSignal.
+     *
+     * $properties maps native OneSignal user properties
+     * ('language', 'timezone_id', 'country') — not data tags.
      */
-    public function createUser(string $externalId, array $tags = []): OneSignalUser
+    public function createUser(string $externalId, array $tags = [], array $properties = []): OneSignalUser
     {
         $user = new OneSignalUser;
         $user->setIdentity(['external_id' => $externalId]);
 
-        if (! empty($tags)) {
-            $properties = new PropertiesObject;
-            $properties->setTags($tags);
-            $user->setProperties($properties);
+        if (! empty($tags) || ! empty($properties)) {
+            $user->setProperties($this->buildProperties($tags, $properties));
         }
 
         return $this->api->createUser($this->appId, $user);
+    }
+
+    /**
+     * Update a user's tags and native properties.
+     *
+     * $properties maps native OneSignal user properties
+     * ('language', 'timezone_id', 'country') — not data tags.
+     */
+    public function updateUser(string $externalId, array $tags = [], array $properties = []): PropertiesBody
+    {
+        $request = new UpdateUserRequest;
+        $request->setProperties($this->buildProperties($tags, $properties));
+
+        return $this->api->updateUser($this->appId, 'external_id', $externalId, $request);
     }
 
     /**
@@ -222,12 +237,7 @@ class OneSignalManager
      */
     public function updateUserTags(string $externalId, array $tags): PropertiesBody
     {
-        $request = new UpdateUserRequest;
-        $properties = new PropertiesObject;
-        $properties->setTags($tags);
-        $request->setProperties($properties);
-
-        return $this->api->updateUser($this->appId, 'external_id', $externalId, $request);
+        return $this->updateUser($externalId, $tags);
     }
 
     /**
@@ -244,5 +254,28 @@ class OneSignalManager
     public function deleteUser(string $externalId): void
     {
         $this->api->deleteUser($this->appId, 'external_id', $externalId);
+    }
+
+    protected function buildProperties(array $tags, array $properties): PropertiesObject
+    {
+        $object = new PropertiesObject;
+
+        if (! empty($tags)) {
+            $object->setTags($tags);
+        }
+
+        if (isset($properties['language'])) {
+            $object->setLanguage($properties['language']);
+        }
+
+        if (isset($properties['timezone_id'])) {
+            $object->setTimezoneId($properties['timezone_id']);
+        }
+
+        if (isset($properties['country'])) {
+            $object->setCountry($properties['country']);
+        }
+
+        return $object;
     }
 }

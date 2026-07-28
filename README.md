@@ -70,8 +70,18 @@ OneSignal::notification()
 // Create a user with tags
 OneSignal::createUser('user_123', ['plan' => 'pro', 'role' => 'admin']);
 
+// Create a user with tags and native properties (language, timezone_id, country)
+OneSignal::createUser('user_123', ['plan' => 'pro'], [
+    'language' => 'pt',
+    'timezone_id' => 'America/Sao_Paulo',
+    'country' => 'BR',
+]);
+
 // Update tags
 OneSignal::updateUserTags('user_123', ['plan' => 'enterprise']);
+
+// Update tags and native properties in one call
+OneSignal::updateUser('user_123', ['plan' => 'enterprise'], ['language' => 'en']);
 
 // Remove tags
 OneSignal::removeUserTags('user_123', ['role']);
@@ -151,6 +161,15 @@ use Multek\CustomerEngagement\Facades\Engagement;
 
 Engagement::sendToUser('user_123', $notification);
 ```
+
+### Native profile properties
+
+Since v1.1.0 (with `laravel-customer-engagement` ^1.1), the `Customer` DTO's `language`
+(ISO 639-1), `timezone` (IANA id) and `country` (ISO 3166-1 alpha-2) fields are mapped to
+OneSignal's **native user properties** (`language`, `timezone_id`, `country`) instead of
+data tags. Native properties are free on every OneSignal plan, while data tags are
+plan-limited (Free: 2 per user) — so profile fields never consume your tag quota.
+`Customer::$attributes` (plus `email`, `phone`, `name`) still flow to data tags as before.
 
 ## Testing
 

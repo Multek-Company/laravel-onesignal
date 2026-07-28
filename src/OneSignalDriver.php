@@ -10,7 +10,7 @@ use Multek\CustomerEngagement\DTOs\Customer;
 use Multek\CustomerEngagement\DTOs\CustomerEvent;
 use Multek\CustomerEngagement\DTOs\Notification;
 
-class OneSignalDriver implements EngagementDriver, SyncsUsers, SendsNotifications, TracksEvents
+class OneSignalDriver implements EngagementDriver, SendsNotifications, SyncsUsers, TracksEvents
 {
     public function __construct(
         protected OneSignalManager $manager,
@@ -32,40 +32,24 @@ class OneSignalDriver implements EngagementDriver, SyncsUsers, SendsNotification
 
     public function createUser(Customer $customer): array
     {
-        $tags = $customer->attributes;
-
-        if ($customer->email) {
-            $tags['email'] = $customer->email;
-        }
-        if ($customer->phone) {
-            $tags['phone'] = $customer->phone;
-        }
-        if ($customer->name) {
-            $tags['name'] = $customer->name;
-        }
-
-        $user = $this->manager->createUser($customer->externalId, $tags);
+        $user = $this->manager->createUser(
+            $customer->externalId,
+            $this->customerTags($customer),
+            $this->customerProperties($customer),
+        );
 
         return json_decode(json_encode($user), true) ?? [];
     }
 
     public function updateUser(Customer $customer): array
     {
-        $tags = $customer->attributes;
+        $result = $this->manager->updateUser(
+            $customer->externalId,
+            $this->customerTags($customer),
+            $this->customerProperties($customer),
+        );
 
-        if ($customer->email) {
-            $tags['email'] = $customer->email;
-        }
-        if ($customer->phone) {
-            $tags['phone'] = $customer->phone;
-        }
-        if ($customer->name) {
-            $tags['name'] = $customer->name;
-        }
-
-        $user = $this->manager->updateUserTags($customer->externalId, $tags);
-
-        return json_decode(json_encode($user), true) ?? [];
+        return json_decode(json_encode($result), true) ?? [];
     }
 
     public function deleteUser(string $externalId): void
@@ -121,6 +105,36 @@ class OneSignalDriver implements EngagementDriver, SyncsUsers, SendsNotification
     }
 
     // ── Internal ───────────────────────────────────────────────────────
+
+    protected function customerTags(Customer $customer): array
+    {
+        $tags = $customer->attributes;
+
+        if ($customer->email) {
+            $tags['email'] = $customer->email;
+        }
+        if ($customer->phone) {
+            $tags['phone'] = $customer->phone;
+        }
+        if ($customer->name) {
+            $tags['name'] = $customer->name;
+        }
+
+        return $tags;
+    }
+
+    /**
+     * Native OneSignal user properties. Profile fields must never be
+     * written as data tags — tags are plan-limited, properties are not.
+     */
+    protected function customerProperties(Customer $customer): array
+    {
+        return array_filter([
+            'language' => $customer->language,
+            'timezone_id' => $customer->timezone,
+            'country' => $customer->country,
+        ], fn ($value) => $value !== null);
+    }
 
     protected function buildNotification(Notification $notification): Builders\NotificationBuilder
     {

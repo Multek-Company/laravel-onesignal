@@ -63,6 +63,100 @@ it('creates a user from Customer DTO', function () {
     expect($result)->toBeArray();
 });
 
+it('creates a user mapping profile fields to native properties, not tags', function () {
+    $customer = new Customer(
+        externalId: 'user_123',
+        attributes: ['plan' => 'pro'],
+        language: 'pt',
+        timezone: 'America/Sao_Paulo',
+        country: 'BR',
+    );
+
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(function ($appId, $userObj) {
+            $properties = $userObj->getProperties();
+
+            return $properties->getLanguage() === 'pt'
+                && $properties->getTimezoneId() === 'America/Sao_Paulo'
+                && $properties->getCountry() === 'BR'
+                && $properties->getTags() === ['plan' => 'pro'];
+        })
+        ->andReturn(new OneSignalUser);
+
+    $result = $this->driver->createUser($customer);
+
+    expect($result)->toBeArray();
+});
+
+it('does not set native properties on create when profile fields are null', function () {
+    $customer = new Customer(
+        externalId: 'user_123',
+        attributes: ['plan' => 'pro'],
+    );
+
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(function ($appId, $userObj) {
+            $properties = $userObj->getProperties();
+
+            return $properties->getLanguage() === null
+                && $properties->getTimezoneId() === null
+                && $properties->getCountry() === null
+                && $properties->getTags() === ['plan' => 'pro'];
+        })
+        ->andReturn(new OneSignalUser);
+
+    $this->driver->createUser($customer);
+});
+
+it('updates a user mapping profile fields to native properties, not tags', function () {
+    $customer = new Customer(
+        externalId: 'user_123',
+        attributes: ['plan' => 'enterprise'],
+        language: 'es',
+        timezone: 'Europe/Madrid',
+        country: 'ES',
+    );
+
+    $this->api->shouldReceive('updateUser')
+        ->once()
+        ->withArgs(function ($appId, $type, $id, $request) {
+            $properties = $request->getProperties();
+
+            return $properties->getLanguage() === 'es'
+                && $properties->getTimezoneId() === 'Europe/Madrid'
+                && $properties->getCountry() === 'ES'
+                && $properties->getTags() === ['plan' => 'enterprise'];
+        })
+        ->andReturn(new PropertiesBody);
+
+    $result = $this->driver->updateUser($customer);
+
+    expect($result)->toBeArray();
+});
+
+it('does not set native properties on update when profile fields are null', function () {
+    $customer = new Customer(
+        externalId: 'user_123',
+        attributes: ['plan' => 'enterprise'],
+    );
+
+    $this->api->shouldReceive('updateUser')
+        ->once()
+        ->withArgs(function ($appId, $type, $id, $request) {
+            $properties = $request->getProperties();
+
+            return $properties->getLanguage() === null
+                && $properties->getTimezoneId() === null
+                && $properties->getCountry() === null
+                && $properties->getTags() === ['plan' => 'enterprise'];
+        })
+        ->andReturn(new PropertiesBody);
+
+    $this->driver->updateUser($customer);
+});
+
 it('updates a user from Customer DTO', function () {
     $customer = new Customer(
         externalId: 'user_123',
