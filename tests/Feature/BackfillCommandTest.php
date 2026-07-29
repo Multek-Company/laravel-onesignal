@@ -61,3 +61,11 @@ it('fails on a missing or invalid sync_model', function () {
     config(['onesignal.sync_model' => 'App\\Does\\Not\\Exist']);
     $this->artisan('onesignal:backfill')->assertExitCode(1);
 });
+
+it('fails when the sync_model does not use HasOneSignal', function () {
+    config(['onesignal.sync_model' => stdClass::class]);
+
+    $this->artisan('onesignal:backfill')
+        ->expectsOutputToContain('must use the HasOneSignal trait')
+        ->assertExitCode(1);
+});

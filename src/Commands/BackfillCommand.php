@@ -30,6 +30,12 @@ class BackfillCommand extends Command
             return self::FAILURE;
         }
 
+        if (! method_exists($model, 'syncToOneSignal')) {
+            $this->error("Invalid onesignal.sync_model: {$model} must use the HasOneSignal trait.");
+
+            return self::FAILURE;
+        }
+
         $total = $model::query()->count();
 
         if ($this->option('dry-run')) {

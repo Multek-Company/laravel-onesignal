@@ -22,7 +22,7 @@ class OneSignalManager
         protected DefaultApi $api,
         protected string $appId,
         protected bool $enabled = true,
-        protected bool $trackEvents = true,
+        protected bool $trackEvents = false,
     ) {}
 
     /**

@@ -14,7 +14,7 @@ use onesignal\client\model\User as OneSignalUser;
 
 beforeEach(function () {
     $this->api = Mockery::mock(DefaultApi::class);
-    $this->manager = new OneSignalManager($this->api, 'test-app-id');
+    $this->manager = new OneSignalManager($this->api, 'test-app-id', trackEvents: true);
 });
 
 it('returns the app id', function () {

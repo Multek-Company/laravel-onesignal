@@ -92,7 +92,7 @@ trait HasOneSignal
         $tags = [];
 
         foreach (config('onesignal.default_tags', []) as $tagKey => $attribute) {
-            if (is_callable($attribute)) {
+            if ($attribute instanceof \Closure) {
                 $tags[$tagKey] = (string) $attribute($this);
             } elseif (is_string($attribute) && isset($this->{$attribute})) {
                 $tags[$tagKey] = (string) $this->{$attribute};
