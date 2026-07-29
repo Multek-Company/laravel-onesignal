@@ -50,6 +50,12 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 
 `ONESIGNAL_ORGANIZATION_API_KEY` is also available for app-level management calls; most projects won't need it.
 
+## Client-side setup (web & mobile)
+
+This package sends notifications and syncs user data, but push subscriptions can only be created on the device itself — by OneSignal's web or mobile SDKs. Both halves share one OneSignal app, and merge into one user by using the same `external_id` (what `getOneSignalExternalId()` returns) in every SDK's `login()` call.
+
+See [docs/client-sdk-integration.md](docs/client-sdk-integration.md) for the full walkthrough: Web SDK setup, mobile setup (including apps that wrap your site in a WebView, where web push does not work), and the rules that keep a multi-SDK setup consistent.
+
 ## Zero-config local dev
 
 The package is safe to leave unconfigured. If `ONESIGNAL_APP_ID` is empty, or `ONESIGNAL_ENABLED=false` is set explicitly, `OneSignalManager::isEnabled()` returns `false` and every write operation (`createUser`, `updateUser`, `deleteUser`, `sendNotification`, `trackEvents`, `syncToOneSignalAsync()`'s dispatch) becomes a no-op that writes a `debug`-level log line instead of calling the API. This means:
