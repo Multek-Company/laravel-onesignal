@@ -5,6 +5,18 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-07-29
+
+### Documentation
+
+- Added `docs/client-sdk-integration.md`: how this package (the server half) pairs with
+  OneSignal's web and mobile SDKs (the device half) — `external_id` as the join key,
+  Web SDK setup, mobile apps that wrap the site in a WebView (where web push does not
+  work), and the rules that keep a multi-SDK setup consistent.
+- README links the guide from a new "Client-side setup (web & mobile)" section.
+
+No code changes.
+
 ## [2.0.0] - 2026-07-28
 
 **laravel-onesignal is now standalone.** See [UPGRADE.md](UPGRADE.md) for the full 1.x → 2.0 migration guide.
