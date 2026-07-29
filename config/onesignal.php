@@ -75,7 +75,10 @@ return [
     | Sync Model
     |--------------------------------------------------------------------------
     | The model class to use for backfill operations (onesignal:backfill command).
-    | Example: App\Models\User::class
+    | Leave empty and the command falls back to your auth provider model
+    | (config('auth.providers.users.model')), then to App\Models\User.
+    | Only set this when your syncable model isn't the authenticated user.
+    | Example: App\Models\Customer::class
     */
     'sync_model' => env('ONESIGNAL_SYNC_MODEL'),
 ];

@@ -54,10 +54,32 @@ it('aborts when the package is disabled', function () {
     Bus::assertNothingDispatched();
 });
 
-it('fails on a missing or invalid sync_model', function () {
-    config(['onesignal.sync_model' => null]);
-    $this->artisan('onesignal:backfill')->assertExitCode(1);
+it('falls back to the auth provider model when sync_model is empty', function () {
+    config([
+        'onesignal.sync_model' => null,
+        'auth.providers.users.model' => User::class,
+    ]);
+    Bus::fake();
 
+    $this->artisan('onesignal:backfill')
+        ->expectsOutputToContain('Dispatched 3 sync jobs')
+        ->assertExitCode(0);
+
+    Bus::assertDispatchedTimes(SyncUserToOneSignal::class, 3);
+});
+
+it('falls back to App\\Models\\User when nothing is configured', function () {
+    config([
+        'onesignal.sync_model' => null,
+        'auth.providers.users.model' => null,
+    ]);
+
+    $this->artisan('onesignal:backfill')
+        ->expectsOutputToContain('App\\Models\\User does not exist')
+        ->assertExitCode(1);
+});
+
+it('fails on an invalid sync_model', function () {
     config(['onesignal.sync_model' => 'App\\Does\\Not\\Exist']);
     $this->artisan('onesignal:backfill')->assertExitCode(1);
 });
