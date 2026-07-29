@@ -46,7 +46,7 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 | `ONESIGNAL_ENABLED` | `true` | Master switch. `false` (or an empty `ONESIGNAL_APP_ID`) turns every call into a no-op |
 | `ONESIGNAL_TRACK_EVENTS` | `false` | Enables `trackEvent()`/`trackOneSignalEvent()`. Custom events are rejected with a 403 on OneSignal's Free plan — leave this off unless your plan supports them |
 | `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
-| `ONESIGNAL_SYNC_MODEL` | — | Fully-qualified model class used by `onesignal:backfill`, e.g. `App\Models\User::class` |
+| `ONESIGNAL_SYNC_MODEL` | auth provider model, then `App\Models\User` | Fully-qualified model class used by `onesignal:backfill`. Only set it when your syncable model isn't the authenticated user, e.g. `App\Models\Customer` |
 
 `ONESIGNAL_ORGANIZATION_API_KEY` is also available for app-level management calls; most projects won't need it.
 
@@ -202,7 +202,9 @@ php artisan onesignal:backfill             # dispatch a sync job per record
 php artisan onesignal:backfill --chunk=500 # override the default chunk size (250)
 ```
 
-Requires `ONESIGNAL_SYNC_MODEL` to point at a model class (e.g. `App\Models\User::class`) that uses `HasOneSignal`. The command exits early with an error if the class doesn't exist, and warns (without failing) if OneSignal is disabled.
+No configuration needed on a standard Laravel app: the command resolves the model from `onesignal.sync_model`, falling back to your auth provider model (`config('auth.providers.users.model')`) and then to `App\Models\User`. Set `ONESIGNAL_SYNC_MODEL` only when the model you sync isn't the authenticated user.
+
+The resolved class must use `HasOneSignal`. The command exits early with an error if it doesn't exist or lacks the trait, and warns (without failing) if OneSignal is disabled.
 
 ## Testing
 

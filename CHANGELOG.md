@@ -5,6 +5,16 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `onesignal:backfill` no longer requires `ONESIGNAL_SYNC_MODEL`. When
+  `onesignal.sync_model` is empty it falls back to the auth provider model
+  (`config('auth.providers.users.model')`) and then to `App\Models\User`. Setting
+  `ONESIGNAL_SYNC_MODEL` still overrides both — use it when the syncable model isn't
+  the authenticated user.
+
 ## [2.0.1] - 2026-07-29
 
 ### Documentation

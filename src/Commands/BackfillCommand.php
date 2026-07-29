@@ -22,10 +22,12 @@ class BackfillCommand extends Command
             return self::SUCCESS;
         }
 
-        $model = config('onesignal.sync_model');
+        $model = config('onesignal.sync_model')
+            ?: config('auth.providers.users.model')
+            ?: 'App\Models\User';
 
         if (! is_string($model) || ! class_exists($model)) {
-            $this->error('Invalid onesignal.sync_model: set ONESIGNAL_SYNC_MODEL to an existing model class.');
+            $this->error("Invalid onesignal.sync_model: {$model} does not exist — set ONESIGNAL_SYNC_MODEL to an existing model class.");
 
             return self::FAILURE;
         }
