@@ -4,7 +4,6 @@ namespace Multek\OneSignal;
 
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
-use Multek\CustomerEngagement\EngagementManager;
 use Multek\OneSignal\Channels\OneSignalChannel;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\Configuration;
@@ -23,13 +22,17 @@ class OneSignalServiceProvider extends ServiceProvider
                 $config->setOrganizationApiKeyToken($orgKey);
             }
 
-            return new DefaultApi(new Client(), $config);
+            return new DefaultApi(new Client, $config);
         });
 
         $this->app->singleton(OneSignalManager::class, function ($app) {
+            $appId = (string) (config('onesignal.app_id') ?? '');
+
             return new OneSignalManager(
                 api: $app->make(DefaultApi::class),
-                appId: config('onesignal.app_id'),
+                appId: $appId,
+                enabled: (bool) config('onesignal.enabled', true) && trim($appId) !== '',
+                trackEvents: (bool) config('onesignal.track_events', false),
             );
         });
 
@@ -44,11 +47,8 @@ class OneSignalServiceProvider extends ServiceProvider
             __DIR__.'/../config/onesignal.php' => config_path('onesignal.php'),
         ], 'onesignal-config');
 
-        // Register as a customer engagement driver
-        if ($this->app->bound(EngagementManager::class)) {
-            $this->app->make(EngagementManager::class)->extend('onesignal', function ($app) {
-                return new OneSignalDriver($app->make(OneSignalManager::class));
-            });
+        if ($this->app->runningInConsole()) {
+            $this->commands([Commands\BackfillCommand::class]);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Multek\OneSignal;
 
+use Illuminate\Support\Facades\Log;
 use Multek\OneSignal\Builders\NotificationBuilder;
 use Multek\OneSignal\Events\NotificationFailed;
 use Multek\OneSignal\Events\NotificationSent;
@@ -11,6 +12,7 @@ use onesignal\client\model\CustomEventsRequest;
 use onesignal\client\model\Notification;
 use onesignal\client\model\PropertiesBody;
 use onesignal\client\model\PropertiesObject;
+use onesignal\client\model\Subscription;
 use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
@@ -19,6 +21,8 @@ class OneSignalManager
     public function __construct(
         protected DefaultApi $api,
         protected string $appId,
+        protected bool $enabled = true,
+        protected bool $trackEvents = false,
     ) {}
 
     /**
@@ -33,6 +37,25 @@ class OneSignalManager
     public function getAppId(): string
     {
         return $this->appId;
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
+    /**
+     * True (and logs) when the package is disabled — callers no-op.
+     */
+    protected function skips(string $operation): bool
+    {
+        if ($this->enabled) {
+            return false;
+        }
+
+        Log::debug("OneSignal disabled, skipping {$operation}");
+
+        return true;
     }
 
     // ──────────────────────────────────
@@ -89,6 +112,10 @@ class OneSignalManager
      */
     public function sendNotification(Notification $notification): array
     {
+        if ($this->skips(__FUNCTION__)) {
+            return [];
+        }
+
         try {
             $result = $this->api->createNotification($notification);
             $response = json_decode(json_encode($result), true) ?? [];
@@ -135,6 +162,16 @@ class OneSignalManager
      */
     public function trackEvents(array $events): void
     {
+        if ($this->skips(__FUNCTION__)) {
+            return;
+        }
+
+        if (! $this->trackEvents) {
+            Log::debug('OneSignal event tracking disabled, skipping trackEvents');
+
+            return;
+        }
+
         $sdkEvents = [];
 
         foreach ($events as $event) {
@@ -195,8 +232,12 @@ class OneSignalManager
     /**
      * Get a user from OneSignal by external_id.
      */
-    public function getUser(string $externalId): OneSignalUser
+    public function getUser(string $externalId): ?OneSignalUser
     {
+        if ($this->skips(__FUNCTION__)) {
+            return null;
+        }
+
         return $this->api->getUser($this->appId, 'external_id', $externalId);
     }
 
@@ -206,13 +247,26 @@ class OneSignalManager
      * $properties maps native OneSignal user properties
      * ('language', 'timezone_id', 'country') — not data tags.
      */
-    public function createUser(string $externalId, array $tags = [], array $properties = []): OneSignalUser
-    {
+    public function createUser(
+        string $externalId,
+        array $tags = [],
+        array $properties = [],
+        ?string $email = null,
+        ?string $phone = null,
+    ): ?OneSignalUser {
+        if ($this->skips(__FUNCTION__)) {
+            return null;
+        }
+
         $user = new OneSignalUser;
         $user->setIdentity(['external_id' => $externalId]);
 
         if (! empty($tags) || ! empty($properties)) {
             $user->setProperties($this->buildProperties($tags, $properties));
+        }
+
+        if ($subscriptions = $this->buildSubscriptions($email, $phone)) {
+            $user->setSubscriptions($subscriptions);
         }
 
         return $this->api->createUser($this->appId, $user);
@@ -224,8 +278,12 @@ class OneSignalManager
      * $properties maps native OneSignal user properties
      * ('language', 'timezone_id', 'country') — not data tags.
      */
-    public function updateUser(string $externalId, array $tags = [], array $properties = []): PropertiesBody
+    public function updateUser(string $externalId, array $tags = [], array $properties = []): ?PropertiesBody
     {
+        if ($this->skips(__FUNCTION__)) {
+            return null;
+        }
+
         $request = new UpdateUserRequest;
         $request->setProperties($this->buildProperties($tags, $properties));
 
@@ -235,7 +293,7 @@ class OneSignalManager
     /**
      * Update tags on a user.
      */
-    public function updateUserTags(string $externalId, array $tags): PropertiesBody
+    public function updateUserTags(string $externalId, array $tags): ?PropertiesBody
     {
         return $this->updateUser($externalId, $tags);
     }
@@ -243,7 +301,7 @@ class OneSignalManager
     /**
      * Remove tags from a user (sets them to empty string).
      */
-    public function removeUserTags(string $externalId, array $tagKeys): PropertiesBody
+    public function removeUserTags(string $externalId, array $tagKeys): ?PropertiesBody
     {
         return $this->updateUserTags($externalId, array_fill_keys($tagKeys, ''));
     }
@@ -253,6 +311,10 @@ class OneSignalManager
      */
     public function deleteUser(string $externalId): void
     {
+        if ($this->skips(__FUNCTION__)) {
+            return;
+        }
+
         $this->api->deleteUser($this->appId, 'external_id', $externalId);
     }
 
@@ -277,5 +339,29 @@ class OneSignalManager
         }
 
         return $object;
+    }
+
+    /**
+     * @return Subscription[]
+     */
+    protected function buildSubscriptions(?string $email, ?string $phone): array
+    {
+        $subscriptions = [];
+
+        if ($email !== null) {
+            $subscription = new Subscription;
+            $subscription->setType(Subscription::TYPE_EMAIL);
+            $subscription->setToken($email);
+            $subscriptions[] = $subscription;
+        }
+
+        if ($phone !== null) {
+            $subscription = new Subscription;
+            $subscription->setType(Subscription::TYPE_SMS);
+            $subscription->setToken($phone);
+            $subscriptions[] = $subscription;
+        }
+
+        return $subscriptions;
     }
 }

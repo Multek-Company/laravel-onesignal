@@ -5,21 +5,32 @@ namespace Multek\OneSignal\Messages;
 class OneSignalMessage
 {
     protected string $body = '';
+
     protected ?string $heading = null;
+
     protected ?string $subtitle = null;
+
     protected ?string $url = null;
+
     protected ?string $image = null;
+
     protected array $data = [];
+
     protected array $buttons = [];
+
     protected ?string $templateId = null;
+
     protected ?int $priority = null;
+
     protected ?int $ttl = null;
+
     protected ?\DateTimeInterface $sendAfter = null;
+
     protected ?string $name = null;
 
     public static function create(string $body = ''): static
     {
-        $message = new static();
+        $message = new static;
         $message->body = $body;
 
         return $message;

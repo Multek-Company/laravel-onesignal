@@ -48,7 +48,34 @@ return [
     | Queue
     |--------------------------------------------------------------------------
     | Queue name for async operations (user sync, batch sends).
-    | Set to null to run synchronously.
+    | Use QUEUE_CONNECTION=sync in .env to run synchronously.
     */
     'queue' => env('ONESIGNAL_QUEUE', 'default'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Enabled
+    |--------------------------------------------------------------------------
+    | Enable or disable the OneSignal package. When disabled, all API calls
+    | are silently skipped (no-op) and debug logs are written.
+    | The package also disables itself when app_id is empty.
+    */
+    'enabled' => env('ONESIGNAL_ENABLED', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Track Events
+    |--------------------------------------------------------------------------
+    | Enable custom event tracking. Free plan rejects custom events with 403.
+    */
+    'track_events' => env('ONESIGNAL_TRACK_EVENTS', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sync Model
+    |--------------------------------------------------------------------------
+    | The model class to use for backfill operations (onesignal:backfill command).
+    | Example: App\Models\User::class
+    */
+    'sync_model' => env('ONESIGNAL_SYNC_MODEL'),
 ];

@@ -33,7 +33,7 @@ class OneSignalChannel
 
     protected function buildSdkNotification(OneSignalMessage $message, string $externalId): SdkNotification
     {
-        $notification = new SdkNotification();
+        $notification = new SdkNotification;
         $notification->setAppId($this->manager->getAppId());
 
         // Target by external_id
@@ -41,20 +41,20 @@ class OneSignalChannel
         $notification->setTargetChannel('push');
 
         // Body (required)
-        $contents = new LanguageStringMap();
+        $contents = new LanguageStringMap;
         $contents->setEn($message->getBody());
         $notification->setContents($contents);
 
         // Heading
         if ($message->getHeading()) {
-            $headings = new LanguageStringMap();
+            $headings = new LanguageStringMap;
             $headings->setEn($message->getHeading());
             $notification->setHeadings($headings);
         }
 
         // Subtitle
         if ($message->getSubtitle()) {
-            $subtitle = new LanguageStringMap();
+            $subtitle = new LanguageStringMap;
             $subtitle->setEn($message->getSubtitle());
             $notification->setSubtitle($subtitle);
         }

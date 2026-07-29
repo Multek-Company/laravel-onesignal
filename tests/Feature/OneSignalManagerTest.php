@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Log;
 use Multek\OneSignal\Builders\NotificationBuilder;
 use Multek\OneSignal\Events\NotificationFailed;
 use Multek\OneSignal\Events\NotificationSent;
@@ -7,12 +8,13 @@ use Multek\OneSignal\OneSignalManager;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\model\CreateNotificationSuccessResponse;
 use onesignal\client\model\PropertiesBody;
+use onesignal\client\model\Subscription;
 use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
 beforeEach(function () {
     $this->api = Mockery::mock(DefaultApi::class);
-    $this->manager = new OneSignalManager($this->api, 'test-app-id');
+    $this->manager = new OneSignalManager($this->api, 'test-app-id', trackEvents: true);
 });
 
 it('returns the app id', function () {
@@ -151,6 +153,34 @@ it('creates a user with native properties', function () {
     ]);
 });
 
+it('creates a user with email and sms subscriptions', function () {
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(function (string $appId, OneSignalUser $user) {
+            $subs = $user->getSubscriptions();
+
+            return $appId === 'test-app-id'
+                && $user->getIdentity() === ['external_id' => 'u1']
+                && count($subs) === 2
+                && $subs[0]->getType() === Subscription::TYPE_EMAIL
+                && $subs[0]->getToken() === 'ana@example.com'
+                && $subs[1]->getType() === Subscription::TYPE_SMS
+                && $subs[1]->getToken() === '+5511999999999';
+        })
+        ->andReturn(new OneSignalUser);
+
+    $this->manager->createUser('u1', ['plan' => 'pro'], ['language' => 'pt'], 'ana@example.com', '+5511999999999');
+});
+
+it('creates a user without subscriptions when email and phone are null', function () {
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(fn (string $appId, OneSignalUser $user) => $user->getSubscriptions() === null)
+        ->andReturn(new OneSignalUser);
+
+    $this->manager->createUser('u1', ['plan' => 'pro']);
+});
+
 it('updates a user with tags and native properties', function () {
     $response = new PropertiesBody;
 
@@ -266,4 +296,54 @@ it('tracks event for multiple users', function () {
         'promo_viewed',
         ['campaign' => 'summer'],
     );
+});
+
+describe('disabled mode', function () {
+    beforeEach(function () {
+        $this->disabledManager = new OneSignalManager($this->api, '', enabled: false);
+    });
+
+    it('reports disabled state', function () {
+        expect($this->disabledManager->isEnabled())->toBeFalse()
+            ->and($this->manager->isEnabled())->toBeTrue();
+    });
+
+    it('never touches the api when disabled', function () {
+        $this->api->shouldNotReceive('createNotification', 'createUser', 'getUser', 'updateUser', 'deleteUser', 'createCustomEvents');
+
+        expect($this->disabledManager->sendToUser('u1', 'Hi'))->toBe([])
+            ->and($this->disabledManager->getUser('u1'))->toBeNull()
+            ->and($this->disabledManager->createUser('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->updateUser('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->updateUserTags('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->removeUserTags('u1', ['plan']))->toBeNull();
+
+        $this->disabledManager->deleteUser('u1');
+        $this->disabledManager->trackEvent('u1', 'purchase');
+    });
+
+    it('logs a debug line when skipping', function () {
+        Log::shouldReceive('debug')->atLeast()->once()
+            ->with(Mockery::pattern('/OneSignal disabled, skipping/'));
+
+        $this->disabledManager->sendToUser('u1', 'Hi');
+    });
+});
+
+describe('event tracking guard', function () {
+    it('skips tracking when track_events is off', function () {
+        Log::shouldReceive('debug')->once()
+            ->with(Mockery::pattern('/event tracking disabled/'));
+
+        $manager = new OneSignalManager($this->api, 'test-app-id', trackEvents: false);
+        $this->api->shouldNotReceive('createCustomEvents');
+
+        $manager->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
+
+    it('tracks when track_events is on', function () {
+        $this->api->shouldReceive('createCustomEvents')->once();
+
+        $this->manager->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
 });
