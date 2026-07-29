@@ -8,6 +8,7 @@ use Multek\OneSignal\OneSignalManager;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\model\CreateNotificationSuccessResponse;
 use onesignal\client\model\PropertiesBody;
+use onesignal\client\model\Subscription;
 use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
@@ -150,6 +151,34 @@ it('creates a user with native properties', function () {
         'timezone_id' => 'America/Sao_Paulo',
         'country' => 'BR',
     ]);
+});
+
+it('creates a user with email and sms subscriptions', function () {
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(function (string $appId, OneSignalUser $user) {
+            $subs = $user->getSubscriptions();
+
+            return $appId === 'test-app-id'
+                && $user->getIdentity() === ['external_id' => 'u1']
+                && count($subs) === 2
+                && $subs[0]->getType() === Subscription::TYPE_EMAIL
+                && $subs[0]->getToken() === 'ana@example.com'
+                && $subs[1]->getType() === Subscription::TYPE_SMS
+                && $subs[1]->getToken() === '+5511999999999';
+        })
+        ->andReturn(new OneSignalUser);
+
+    $this->manager->createUser('u1', ['plan' => 'pro'], ['language' => 'pt'], 'ana@example.com', '+5511999999999');
+});
+
+it('creates a user without subscriptions when email and phone are null', function () {
+    $this->api->shouldReceive('createUser')
+        ->once()
+        ->withArgs(fn (string $appId, OneSignalUser $user) => $user->getSubscriptions() === null)
+        ->andReturn(new OneSignalUser);
+
+    $this->manager->createUser('u1', ['plan' => 'pro']);
 });
 
 it('updates a user with tags and native properties', function () {

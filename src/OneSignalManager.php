@@ -12,6 +12,7 @@ use onesignal\client\model\CustomEventsRequest;
 use onesignal\client\model\Notification;
 use onesignal\client\model\PropertiesBody;
 use onesignal\client\model\PropertiesObject;
+use onesignal\client\model\Subscription;
 use onesignal\client\model\UpdateUserRequest;
 use onesignal\client\model\User as OneSignalUser;
 
@@ -246,8 +247,13 @@ class OneSignalManager
      * $properties maps native OneSignal user properties
      * ('language', 'timezone_id', 'country') — not data tags.
      */
-    public function createUser(string $externalId, array $tags = [], array $properties = []): ?OneSignalUser
-    {
+    public function createUser(
+        string $externalId,
+        array $tags = [],
+        array $properties = [],
+        ?string $email = null,
+        ?string $phone = null,
+    ): ?OneSignalUser {
         if ($this->skips(__FUNCTION__)) {
             return null;
         }
@@ -257,6 +263,10 @@ class OneSignalManager
 
         if (! empty($tags) || ! empty($properties)) {
             $user->setProperties($this->buildProperties($tags, $properties));
+        }
+
+        if ($subscriptions = $this->buildSubscriptions($email, $phone)) {
+            $user->setSubscriptions($subscriptions);
         }
 
         return $this->api->createUser($this->appId, $user);
@@ -329,5 +339,29 @@ class OneSignalManager
         }
 
         return $object;
+    }
+
+    /**
+     * @return Subscription[]
+     */
+    protected function buildSubscriptions(?string $email, ?string $phone): array
+    {
+        $subscriptions = [];
+
+        if ($email !== null) {
+            $subscription = new Subscription;
+            $subscription->setType(Subscription::TYPE_EMAIL);
+            $subscription->setToken($email);
+            $subscriptions[] = $subscription;
+        }
+
+        if ($phone !== null) {
+            $subscription = new Subscription;
+            $subscription->setType(Subscription::TYPE_SMS);
+            $subscription->setToken($phone);
+            $subscriptions[] = $subscription;
+        }
+
+        return $subscriptions;
     }
 }
