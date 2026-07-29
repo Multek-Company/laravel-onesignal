@@ -45,7 +45,7 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 | `ONESIGNAL_REST_API_KEY` | — | REST API key used for server-side calls |
 | `ONESIGNAL_ENABLED` | `true` | Master switch. `false` (or an empty `ONESIGNAL_APP_ID`) turns every call into a no-op |
 | `ONESIGNAL_TRACK_EVENTS` | `false` | Enables `trackEvent()`/`trackOneSignalEvent()`. Custom events are rejected with a 403 on OneSignal's Free plan — leave this off unless your plan supports them |
-| `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
+| `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `deleteFromOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
 | `ONESIGNAL_SYNC_MODEL` | auth provider model, then `App\Models\User` | Fully-qualified model class used by `onesignal:backfill`. Only set it when your syncable model isn't the authenticated user, e.g. `App\Models\Customer` |
 
 `ONESIGNAL_ORGANIZATION_API_KEY` is also available for app-level management calls; most projects won't need it.
@@ -119,10 +119,35 @@ $user->sendPush('Your order shipped!', ['order_id' => 456]);
 
 $user->trackOneSignalEvent('purchase', ['amount' => 99.90]);
 
-$user->deleteFromOneSignal();
+$user->deleteFromOneSignal();       // synchronous
+$user->deleteFromOneSignalAsync();  // dispatches DeleteUserFromOneSignal on the configured queue
 ```
 
-`syncToOneSignalAsync()` checks `OneSignalManager::isEnabled()` before dispatching — when the package is disabled, no job is queued at all (not even a no-op job).
+Both `*Async()` methods check `OneSignalManager::isEnabled()` before dispatching — when the package is disabled, no job is queued at all (not even a no-op job). Both jobs retry 3× with a `[10, 60, 300]`-second backoff, so a transient OneSignal 5xx doesn't silently orphan a profile.
+
+### Deleting on model deletion
+
+`deleteFromOneSignalAsync()` captures the external id eagerly, so it is safe to call from a `deleted` hook where the row is already gone:
+
+```php
+public function deleted(User $user): void
+{
+    $user->deleteFromOneSignalAsync();
+}
+```
+
+Two things to know:
+
+- A `404` from OneSignal (profile never synced, or already deleted) is treated as a completed erasure — logged at `debug` and **not** retried, so idempotent deletes don't fill `failed_jobs`.
+- With `SoftDeletes`, the `deleted` event also fires on soft deletes. If a soft delete should be reversible, hook `forceDeleted` instead — otherwise a restore leaves the user with no OneSignal profile until the next sync.
+
+Deleting by id, with no model in hand (admin tooling, GDPR/LGPD erasure of an already-removed row):
+
+```php
+use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
+
+dispatch(new DeleteUserFromOneSignal('user_123'));
+```
 
 ## Sending notifications
 

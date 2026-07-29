@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
 use Multek\OneSignal\OneSignalManager;
 use Multek\OneSignal\Tests\Fixtures\User;
@@ -90,6 +91,27 @@ it('dispatches nothing when disabled', function () {
     Bus::fake();
 
     fixtureUser()->syncToOneSignalAsync();
+
+    Bus::assertNothingDispatched();
+});
+
+it('dispatches the delete job carrying the external id when enabled', function () {
+    Bus::fake();
+
+    fixtureUser()->deleteFromOneSignalAsync();
+
+    Bus::assertDispatched(
+        DeleteUserFromOneSignal::class,
+        fn (DeleteUserFromOneSignal $job) => $job->externalId === '1',
+    );
+});
+
+it('dispatches no delete job when disabled', function () {
+    config(['onesignal.enabled' => false]);
+    $this->app->forgetInstance(OneSignalManager::class);
+    Bus::fake();
+
+    fixtureUser()->deleteFromOneSignalAsync();
 
     Bus::assertNothingDispatched();
 });

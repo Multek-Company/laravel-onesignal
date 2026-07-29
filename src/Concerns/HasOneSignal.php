@@ -4,6 +4,7 @@ namespace Multek\OneSignal\Concerns;
 
 use Illuminate\Support\Facades\Log;
 use Multek\OneSignal\Facades\OneSignal;
+use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
 use Multek\OneSignal\OneSignalManager;
 
@@ -168,6 +169,23 @@ trait HasOneSignal
     public function deleteFromOneSignal(): void
     {
         OneSignal::deleteUser($this->getOneSignalExternalId());
+    }
+
+    /**
+     * Dispatch a queued delete job (gated by enablement).
+     *
+     * Safe to call from a `deleted` model hook: the external id is captured
+     * eagerly, so the job no longer needs the model row.
+     */
+    public function deleteFromOneSignalAsync(): void
+    {
+        if (! app(OneSignalManager::class)->isEnabled()) {
+            Log::debug('OneSignal disabled, skipping delete dispatch');
+
+            return;
+        }
+
+        dispatch(new DeleteUserFromOneSignal($this->getOneSignalExternalId()));
     }
 
     /**

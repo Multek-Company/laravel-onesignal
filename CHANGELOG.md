@@ -5,6 +5,18 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `HasOneSignal::deleteFromOneSignalAsync()` and `Jobs\DeleteUserFromOneSignal` — the async
+  half of the delete path, mirroring `syncToOneSignalAsync()`: same enablement gate, same
+  `tries = 3` / `backoff = [10, 60, 300]` policy, same `onesignal.queue`. Consuming apps no
+  longer hand-roll a queued closure with no retry policy, which could permanently orphan a
+  profile on a transient 5xx. The job takes the external id (a string), not the model, so it
+  works from a `deleted` hook after the row is gone. A `404` from OneSignal is treated as a
+  completed erasure — logged at `debug`, not retried. ([#11](https://github.com/Multek-Company/laravel-onesignal/issues/11))
+
 ## [2.1.0] - 2026-07-29
 
 ### Changed
