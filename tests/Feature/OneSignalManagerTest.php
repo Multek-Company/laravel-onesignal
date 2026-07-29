@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Log;
 use Multek\OneSignal\Builders\NotificationBuilder;
 use Multek\OneSignal\Events\NotificationFailed;
 use Multek\OneSignal\Events\NotificationSent;
@@ -266,4 +267,36 @@ it('tracks event for multiple users', function () {
         'promo_viewed',
         ['campaign' => 'summer'],
     );
+});
+
+describe('disabled mode', function () {
+    beforeEach(function () {
+        $this->disabledManager = new OneSignalManager($this->api, '', enabled: false);
+    });
+
+    it('reports disabled state', function () {
+        expect($this->disabledManager->isEnabled())->toBeFalse()
+            ->and($this->manager->isEnabled())->toBeTrue();
+    });
+
+    it('never touches the api when disabled', function () {
+        $this->api->shouldNotReceive('createNotification', 'createUser', 'getUser', 'updateUser', 'deleteUser', 'createCustomEvents');
+
+        expect($this->disabledManager->sendToUser('u1', 'Hi'))->toBe([])
+            ->and($this->disabledManager->getUser('u1'))->toBeNull()
+            ->and($this->disabledManager->createUser('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->updateUser('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->updateUserTags('u1', ['plan' => 'pro']))->toBeNull()
+            ->and($this->disabledManager->removeUserTags('u1', ['plan']))->toBeNull();
+
+        $this->disabledManager->deleteUser('u1');
+        $this->disabledManager->trackEvent('u1', 'purchase');
+    });
+
+    it('logs a debug line when skipping', function () {
+        Log::shouldReceive('debug')->atLeast()->once()
+            ->with(Mockery::pattern('/OneSignal disabled, skipping/'));
+
+        $this->disabledManager->sendToUser('u1', 'Hi');
+    });
 });

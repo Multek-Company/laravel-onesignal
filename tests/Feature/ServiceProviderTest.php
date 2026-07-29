@@ -29,3 +29,17 @@ it('resolves same instance for singletons', function () {
 
     expect($manager1)->toBe($manager2);
 });
+
+it('disables the manager when app_id is empty', function () {
+    config(['onesignal.app_id' => null]);
+    $this->app->forgetInstance(OneSignalManager::class);
+
+    expect(app(OneSignalManager::class)->isEnabled())->toBeFalse();
+});
+
+it('disables the manager when ONESIGNAL_ENABLED is false', function () {
+    config(['onesignal.enabled' => false]);
+    $this->app->forgetInstance(OneSignalManager::class);
+
+    expect(app(OneSignalManager::class)->isEnabled())->toBeFalse();
+});
