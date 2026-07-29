@@ -48,7 +48,7 @@ return [
     | Queue
     |--------------------------------------------------------------------------
     | Queue name for async operations (user sync, batch sends).
-    | Set to null to run synchronously.
+    | Use QUEUE_CONNECTION=sync in .env to run synchronously.
     */
     'queue' => env('ONESIGNAL_QUEUE', 'default'),
 

@@ -45,7 +45,7 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 | `ONESIGNAL_REST_API_KEY` | — | REST API key used for server-side calls |
 | `ONESIGNAL_ENABLED` | `true` | Master switch. `false` (or an empty `ONESIGNAL_APP_ID`) turns every call into a no-op |
 | `ONESIGNAL_TRACK_EVENTS` | `false` | Enables `trackEvent()`/`trackOneSignalEvent()`. Custom events are rejected with a 403 on OneSignal's Free plan — leave this off unless your plan supports them |
-| `ONESIGNAL_QUEUE` | `default` | Queue name used for async user sync (`syncToOneSignalAsync()`, `onesignal:backfill`). Set to `null` to run inline |
+| `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
 | `ONESIGNAL_SYNC_MODEL` | — | Fully-qualified model class used by `onesignal:backfill`, e.g. `App\Models\User::class` |
 
 `ONESIGNAL_ORGANIZATION_API_KEY` is also available for app-level management calls; most projects won't need it.

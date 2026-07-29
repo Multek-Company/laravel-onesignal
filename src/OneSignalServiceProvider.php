@@ -31,7 +31,7 @@ class OneSignalServiceProvider extends ServiceProvider
             return new OneSignalManager(
                 api: $app->make(DefaultApi::class),
                 appId: $appId,
-                enabled: (bool) config('onesignal.enabled', true) && $appId !== '',
+                enabled: (bool) config('onesignal.enabled', true) && trim($appId) !== '',
                 trackEvents: (bool) config('onesignal.track_events', false),
             );
         });
