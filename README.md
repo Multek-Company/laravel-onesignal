@@ -1,6 +1,6 @@
 # Laravel OneSignal
 
-Laravel wrapper for the official [OneSignal PHP SDK](https://github.com/OneSignal/onesignal-php-api). Manage OneSignal users — identity, native properties, and Email/SMS subscriptions — sync tags, track custom events, and send push, email, and SMS notifications through a clean, fluent API.
+Laravel wrapper for the official [OneSignal PHP SDK](https://github.com/OneSignal/onesignal-php-api). Send push notifications through a clean, fluent API, and sync OneSignal users — identity, native properties, tags, and Email/SMS subscriptions — so they're reachable through OneSignal's own email/SMS messaging (dashboard campaigns, journeys). Also tracks custom events for analytics and segmentation.
 
 ## Features
 
