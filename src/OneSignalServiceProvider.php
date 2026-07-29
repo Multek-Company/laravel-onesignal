@@ -5,7 +5,6 @@ namespace Multek\OneSignal;
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
 use Multek\OneSignal\Channels\OneSignalChannel;
-use Multek\OneSignal\Commands;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\Configuration;
 
@@ -23,7 +22,7 @@ class OneSignalServiceProvider extends ServiceProvider
                 $config->setOrganizationApiKeyToken($orgKey);
             }
 
-            return new DefaultApi(new Client(), $config);
+            return new DefaultApi(new Client, $config);
         });
 
         $this->app->singleton(OneSignalManager::class, function ($app) {

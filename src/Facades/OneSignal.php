@@ -20,7 +20,7 @@ use Multek\OneSignal\OneSignalManager;
  * @method static void trackEvents(array $events)
  * @method static void trackEventForUsers(array $externalIds, string $eventName, array $payload = [], ?\DateTimeInterface $timestamp = null)
  *
- * @see \Multek\OneSignal\OneSignalManager
+ * @see OneSignalManager
  */
 class OneSignal extends Facade
 {

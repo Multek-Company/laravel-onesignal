@@ -16,7 +16,7 @@ beforeEach(function () {
 it('sends notification via channel with OneSignalMessage', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-ch-1');
 
     $this->api->shouldReceive('createNotification')
@@ -28,12 +28,21 @@ it('sends notification via channel with OneSignalMessage', function () {
         })
         ->andReturn($response);
 
-    $notifiable = new class {
-        public function getKey() { return 42; }
-        public function routeNotificationFor($channel, $notification = null) { return null; }
+    $notifiable = new class
+    {
+        public function getKey()
+        {
+            return 42;
+        }
+
+        public function routeNotificationFor($channel, $notification = null)
+        {
+            return null;
+        }
     };
 
-    $notification = new class extends Notification {
+    $notification = new class extends Notification
+    {
         public function toOneSignal($notifiable): OneSignalMessage
         {
             return OneSignalMessage::create('Order shipped')
@@ -47,7 +56,7 @@ it('sends notification via channel with OneSignalMessage', function () {
 it('sends notification via channel with string', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-ch-2');
 
     $this->api->shouldReceive('createNotification')
@@ -57,12 +66,21 @@ it('sends notification via channel with string', function () {
         })
         ->andReturn($response);
 
-    $notifiable = new class {
-        public function getKey() { return 1; }
-        public function routeNotificationFor($channel, $notification = null) { return null; }
+    $notifiable = new class
+    {
+        public function getKey()
+        {
+            return 1;
+        }
+
+        public function routeNotificationFor($channel, $notification = null)
+        {
+            return null;
+        }
     };
 
-    $notification = new class extends Notification {
+    $notification = new class extends Notification
+    {
         public function toOneSignal($notifiable): string
         {
             return 'Simple message';
@@ -75,7 +93,7 @@ it('sends notification via channel with string', function () {
 it('uses custom routing for external id', function () {
     Event::fake();
 
-    $response = new CreateNotificationSuccessResponse();
+    $response = new CreateNotificationSuccessResponse;
     $response->setId('notif-ch-3');
 
     $this->api->shouldReceive('createNotification')
@@ -85,12 +103,21 @@ it('uses custom routing for external id', function () {
         })
         ->andReturn($response);
 
-    $notifiable = new class {
-        public function getKey() { return 99; }
-        public function routeNotificationFor($channel, $notification = null) { return 'custom-ext-id'; }
+    $notifiable = new class
+    {
+        public function getKey()
+        {
+            return 99;
+        }
+
+        public function routeNotificationFor($channel, $notification = null)
+        {
+            return 'custom-ext-id';
+        }
     };
 
-    $notification = new class extends Notification {
+    $notification = new class extends Notification
+    {
         public function toOneSignal($notifiable): OneSignalMessage
         {
             return OneSignalMessage::create('Test');

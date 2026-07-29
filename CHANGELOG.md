@@ -5,6 +5,45 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-28
+
+**laravel-onesignal is now standalone.** See [UPGRADE.md](UPGRADE.md) for the full 1.x → 2.0 migration guide.
+
+### Breaking
+
+- Dropped the `multek/laravel-customer-engagement` dependency and driver registration
+  (`EngagementDriver`, `SyncsUsers`, `SendsNotifications`, `TracksEvents`). The
+  `HasCustomerEngagement` trait is replaced by `HasOneSignal`, with renamed methods
+  (`syncToOneSignal()`, `syncToOneSignalAsync()`, `trackOneSignalEvent()`,
+  `deleteFromOneSignal()`, `getOneSignalExternalId()`, `getOneSignalLanguage()/Timezone()/Country()`).
+  `config/customer-engagement.php` is no longer read; everything now lives in
+  `config/onesignal.php`.
+- Identity fields are no longer copied into data tags. `getOneSignalEmail()` and
+  `getOneSignalPhone()` now become native Email/SMS **subscriptions** instead of tags —
+  phone must be E.164, non-conforming values are omitted with a warning. If you segment
+  on name/email tags today, add them explicitly in `getOneSignalTags()`.
+- `OneSignalManager::createUser()`, `updateUser()`, `getUser()` now return `null` (instead
+  of throwing or hitting the API) when the package is disabled — check `isEnabled()` or
+  handle a nullable return.
+- `syncToOneSignalAsync()` no longer dispatches a job at all when OneSignal is disabled
+  (previously dispatched a no-op job). `Bus::fake()` dispatch assertions need
+  `config(['onesignal.enabled' => true])` and a non-empty `onesignal.app_id`.
+
+### Added
+
+- Enabled/disabled gate (`ONESIGNAL_ENABLED`, defaults to disabled when `ONESIGNAL_APP_ID`
+  is empty): every write operation becomes a logged no-op, so the package is safe to use
+  unconfigured in local/CI environments.
+- `ONESIGNAL_TRACK_EVENTS` guard (default `false`) for custom event tracking — OneSignal's
+  Free plan rejects custom events with a 403.
+- `OneSignalManager::createUser()` now carries native Email/SMS subscriptions in the same
+  upsert call as tags and properties, built from `getOneSignalEmail()`/`getOneSignalPhone()`.
+- `onesignal:backfill {--dry-run} {--chunk=250}` artisan command to sync existing models
+  configured via `ONESIGNAL_SYNC_MODEL`.
+- `tests/Live`: an env-gated live smoke suite (`ONESIGNAL_TEST_APP_ID` /
+  `ONESIGNAL_TEST_REST_API_KEY`) exercising the full user lifecycle against the real
+  OneSignal API.
+
 ## [1.1.0] - 2026-07-28
 
 ### Added

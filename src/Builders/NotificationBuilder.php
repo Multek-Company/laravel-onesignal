@@ -12,7 +12,7 @@ class NotificationBuilder
 
     public function __construct(protected OneSignalManager $manager)
     {
-        $this->notification = new Notification();
+        $this->notification = new Notification;
         $this->notification->setAppId($manager->getAppId());
     }
 
@@ -61,7 +61,7 @@ class NotificationBuilder
 
     public function body(string $message, string $locale = 'en'): static
     {
-        $contents = $this->notification->getContents() ?? new LanguageStringMap();
+        $contents = $this->notification->getContents() ?? new LanguageStringMap;
 
         if ($locale === 'en') {
             $contents->setEn($message);
@@ -76,7 +76,7 @@ class NotificationBuilder
 
     public function heading(string $title, string $locale = 'en'): static
     {
-        $headings = $this->notification->getHeadings() ?? new LanguageStringMap();
+        $headings = $this->notification->getHeadings() ?? new LanguageStringMap;
 
         if ($locale === 'en') {
             $headings->setEn($title);
@@ -91,7 +91,7 @@ class NotificationBuilder
 
     public function subtitle(string $subtitle, string $locale = 'en'): static
     {
-        $sub = $this->notification->getSubtitle() ?? new LanguageStringMap();
+        $sub = $this->notification->getSubtitle() ?? new LanguageStringMap;
 
         if ($locale === 'en') {
             $sub->setEn($subtitle);

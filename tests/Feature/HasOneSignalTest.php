@@ -32,9 +32,20 @@ it('maps language, timezone and country to native properties', function () {
 
     $user = new class extends User
     {
-        public function getOneSignalLanguage(): ?string { return 'pt'; }
-        public function getOneSignalTimezone(): ?string { return 'America/Sao_Paulo'; }
-        public function getOneSignalCountry(): ?string { return 'BR'; }
+        public function getOneSignalLanguage(): ?string
+        {
+            return 'pt';
+        }
+
+        public function getOneSignalTimezone(): ?string
+        {
+            return 'America/Sao_Paulo';
+        }
+
+        public function getOneSignalCountry(): ?string
+        {
+            return 'BR';
+        }
     };
 
     $manager->shouldReceive('createUser')
