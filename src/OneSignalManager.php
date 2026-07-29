@@ -165,6 +165,12 @@ class OneSignalManager
             return;
         }
 
+        if (! $this->trackEvents) {
+            Log::debug('OneSignal event tracking disabled, skipping trackEvents');
+
+            return;
+        }
+
         $sdkEvents = [];
 
         foreach ($events as $event) {

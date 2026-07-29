@@ -300,3 +300,21 @@ describe('disabled mode', function () {
         $this->disabledManager->sendToUser('u1', 'Hi');
     });
 });
+
+describe('event tracking guard', function () {
+    it('skips tracking when track_events is off', function () {
+        Log::shouldReceive('debug')->once()
+            ->with(Mockery::pattern('/event tracking disabled/'));
+
+        $manager = new OneSignalManager($this->api, 'test-app-id', trackEvents: false);
+        $this->api->shouldNotReceive('createCustomEvents');
+
+        $manager->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
+
+    it('tracks when track_events is on', function () {
+        $this->api->shouldReceive('createCustomEvents')->once();
+
+        $this->manager->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
+});
