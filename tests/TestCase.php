@@ -2,7 +2,6 @@
 
 namespace Multek\OneSignal\Tests;
 
-use Multek\CustomerEngagement\CustomerEngagementServiceProvider;
 use Multek\OneSignal\OneSignalServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -11,7 +10,6 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            CustomerEngagementServiceProvider::class,
             OneSignalServiceProvider::class,
         ];
     }
