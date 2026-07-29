@@ -5,6 +5,7 @@ namespace Multek\OneSignal;
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
 use Multek\OneSignal\Channels\OneSignalChannel;
+use Multek\OneSignal\Commands;
 use onesignal\client\api\DefaultApi;
 use onesignal\client\Configuration;
 
@@ -46,5 +47,9 @@ class OneSignalServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/onesignal.php' => config_path('onesignal.php'),
         ], 'onesignal-config');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([Commands\BackfillCommand::class]);
+        }
     }
 }
