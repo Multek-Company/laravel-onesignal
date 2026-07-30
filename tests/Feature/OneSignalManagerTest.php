@@ -402,4 +402,22 @@ describe('lazy config reads', function () {
 
         $untracked->trackEvent('u1', 'purchase', ['amount' => 50]);
     });
+
+    it('never resolves the SDK client while disabled', function () {
+        config(['onesignal.enabled' => false]);
+
+        $resolved = false;
+        $this->app->bind(DefaultApi::class, function () use (&$resolved) {
+            $resolved = true;
+
+            return Mockery::mock(DefaultApi::class);
+        });
+
+        $manager = app(OneSignalManager::class);
+        $manager->deleteUser('u1');
+        $manager->trackEvent('u1', 'purchase');
+
+        expect($manager->isEnabled())->toBeFalse()
+            ->and($resolved)->toBeFalse();
+    });
 });

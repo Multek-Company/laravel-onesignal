@@ -26,7 +26,7 @@ class OneSignalServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(OneSignalManager::class, function ($app) {
-            return new OneSignalManager(api: $app->make(DefaultApi::class));
+            return new OneSignalManager(api: fn () => $app->make(DefaultApi::class));
         });
 
         $this->app->singleton(OneSignalChannel::class, function ($app) {
