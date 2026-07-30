@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
 use Multek\OneSignal\Observers\OneSignalObserver;
+use Multek\OneSignal\Tests\Fixtures\SoftDeletingUser;
 use Multek\OneSignal\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -62,4 +63,36 @@ it('dispatches a delete when a model without SoftDeletes is deleted', function (
         DeleteUserFromOneSignal::class,
         fn (DeleteUserFromOneSignal $job) => $job->externalId === (string) $user->id,
     );
+});
+
+it('keeps the profile on a soft delete and removes it on a force delete', function () {
+    Schema::table('users', function ($table) {
+        $table->softDeletes();
+    });
+
+    SoftDeletingUser::observe(OneSignalObserver::class);
+    $user = SoftDeletingUser::create(['email' => 'ana@example.com']);
+
+    Bus::fake();
+
+    $user->delete();
+    Bus::assertNotDispatched(DeleteUserFromOneSignal::class);
+
+    $user->forceDelete();
+    Bus::assertDispatchedTimes(DeleteUserFromOneSignal::class, 1);
+});
+
+it('dispatches a sync when a soft-deleted model is restored', function () {
+    Schema::table('users', function ($table) {
+        $table->softDeletes();
+    });
+
+    SoftDeletingUser::observe(OneSignalObserver::class);
+    $user = SoftDeletingUser::create(['email' => 'ana@example.com']);
+    $user->delete();
+
+    Bus::fake();
+    $user->restore();
+
+    Bus::assertDispatchedTimes(SyncUserToOneSignal::class, 1);
 });
