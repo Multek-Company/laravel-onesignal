@@ -5,6 +5,48 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `HasOneSignal::deleteFromOneSignalAsync()` and `Jobs\DeleteUserFromOneSignal` — the async
+  half of the delete path, mirroring `syncToOneSignalAsync()`: same enablement gate, same
+  `tries = 3` / `backoff = [10, 60, 300]` policy, same `onesignal.queue`. Consuming apps no
+  longer hand-roll a queued closure with no retry policy, which could permanently orphan a
+  profile on a transient 5xx. The job takes the external id (a string), not the model, so it
+  works from a `deleted` hook after the row is gone. A `404` from OneSignal is treated as a
+  completed erasure — logged at `debug`, not retried. ([#11](https://github.com/Multek-Company/laravel-onesignal/issues/11))
+- `HasOneSignal::toOneSignalPayload()` and `oneSignalPayloadChanged()` — the sync
+  payload as a first-class value, plus a derived answer to "does this save need a
+  resync?". Replaces hand-maintained watched-attribute lists in consuming apps:
+  a new tag or getter is covered the day it is added. Both sides of the diff are
+  built from clones with relations cleared, so a changed foreign key is detected
+  even when the relation was already eager-loaded.
+- `Observers\OneSignalObserver` — attach with
+  `#[ObservedBy(OneSignalObserver::class)]` and the whole app-side integration is
+  that one attribute. Handles create, update, delete (leaving soft-deleted
+  profiles intact until `forceDelete()`) and restore. See the README for what it
+  covers and what still needs an observer on the related model.
+  ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+
+### Fixed
+
+- `SyncUserToOneSignal` sets `deleteWhenMissingModels`, so a user deleted between
+  dispatch and execution drops the job instead of putting a
+  `ModelNotFoundException` in `failed_jobs`. ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+
+### Changed
+
+- `OneSignalManager` reads `enabled`, `app_id` and `track_events` from `config()`
+  at call time instead of snapshotting them at first resolution, and resolves the
+  SDK client on first use. Constructor arguments still override config, so
+  passing an explicit `enabled:` argument behaves as before; constructing
+  without one now follows `onesignal.enabled` (default `true`) instead of
+  always forcing `true`, so only a consumer relying on that forced-`true`
+  default is affected. Tests no longer need
+  `app()->forgetInstance(OneSignalManager::class)` to observe a config change.
+  ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+
 ## [2.1.0] - 2026-07-29
 
 ### Changed

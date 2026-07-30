@@ -2,6 +2,7 @@
 
 namespace Multek\OneSignal;
 
+use Closure;
 use Illuminate\Support\Facades\Log;
 use Multek\OneSignal\Builders\NotificationBuilder;
 use Multek\OneSignal\Events\NotificationFailed;
@@ -19,29 +20,45 @@ use onesignal\client\model\User as OneSignalUser;
 class OneSignalManager
 {
     public function __construct(
-        protected DefaultApi $api,
-        protected string $appId,
-        protected bool $enabled = true,
-        protected bool $trackEvents = false,
+        protected DefaultApi|Closure $api,
+        protected ?string $appId = null,
+        protected ?bool $enabled = null,
+        protected ?bool $trackEvents = null,
     ) {}
 
     /**
      * Access the official SDK's DefaultApi directly for anything
-     * not covered by convenience methods.
+     * not covered by convenience methods. Resolved on first use.
      */
     public function api(): DefaultApi
     {
+        if ($this->api instanceof Closure) {
+            $this->api = ($this->api)();
+        }
+
         return $this->api;
     }
 
     public function getAppId(): string
     {
-        return $this->appId;
+        return trim($this->appId ?? (string) config('onesignal.app_id', ''));
     }
 
     public function isEnabled(): bool
     {
-        return $this->enabled;
+        if ($this->enabled !== null) {
+            return $this->enabled;
+        }
+
+        return (bool) config('onesignal.enabled', true) && $this->getAppId() !== '';
+    }
+
+    /**
+     * Custom events are gated separately — the OneSignal Free plan rejects them with 403.
+     */
+    protected function tracksEvents(): bool
+    {
+        return $this->trackEvents ?? (bool) config('onesignal.track_events', false);
     }
 
     /**
@@ -49,7 +66,7 @@ class OneSignalManager
      */
     protected function skips(string $operation): bool
     {
-        if ($this->enabled) {
+        if ($this->isEnabled()) {
             return false;
         }
 
@@ -117,7 +134,7 @@ class OneSignalManager
         }
 
         try {
-            $result = $this->api->createNotification($notification);
+            $result = $this->api()->createNotification($notification);
             $response = json_decode(json_encode($result), true) ?? [];
 
             event(new NotificationSent(
@@ -166,7 +183,7 @@ class OneSignalManager
             return;
         }
 
-        if (! $this->trackEvents) {
+        if (! $this->tracksEvents()) {
             Log::debug('OneSignal event tracking disabled, skipping trackEvents');
 
             return;
@@ -190,7 +207,7 @@ class OneSignalManager
         $request = new CustomEventsRequest;
         $request->setEvents($sdkEvents);
 
-        $this->api->createCustomEvents($this->appId, $request);
+        $this->api()->createCustomEvents($this->getAppId(), $request);
     }
 
     /**
@@ -238,7 +255,7 @@ class OneSignalManager
             return null;
         }
 
-        return $this->api->getUser($this->appId, 'external_id', $externalId);
+        return $this->api()->getUser($this->getAppId(), 'external_id', $externalId);
     }
 
     /**
@@ -269,7 +286,7 @@ class OneSignalManager
             $user->setSubscriptions($subscriptions);
         }
 
-        return $this->api->createUser($this->appId, $user);
+        return $this->api()->createUser($this->getAppId(), $user);
     }
 
     /**
@@ -287,7 +304,7 @@ class OneSignalManager
         $request = new UpdateUserRequest;
         $request->setProperties($this->buildProperties($tags, $properties));
 
-        return $this->api->updateUser($this->appId, 'external_id', $externalId, $request);
+        return $this->api()->updateUser($this->getAppId(), 'external_id', $externalId, $request);
     }
 
     /**
@@ -315,7 +332,7 @@ class OneSignalManager
             return;
         }
 
-        $this->api->deleteUser($this->appId, 'external_id', $externalId);
+        $this->api()->deleteUser($this->getAppId(), 'external_id', $externalId);
     }
 
     protected function buildProperties(array $tags, array $properties): PropertiesObject

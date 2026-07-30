@@ -45,7 +45,7 @@ ONESIGNAL_REST_API_KEY=your-rest-api-key
 | `ONESIGNAL_REST_API_KEY` | — | REST API key used for server-side calls |
 | `ONESIGNAL_ENABLED` | `true` | Master switch. `false` (or an empty `ONESIGNAL_APP_ID`) turns every call into a no-op |
 | `ONESIGNAL_TRACK_EVENTS` | `false` | Enables `trackEvent()`/`trackOneSignalEvent()`. Custom events are rejected with a 403 on OneSignal's Free plan — leave this off unless your plan supports them |
-| `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
+| `ONESIGNAL_QUEUE` | `default` | Queue name for async operations (`syncToOneSignalAsync()`, `deleteFromOneSignalAsync()`, `onesignal:backfill`). Requires `QUEUE_CONNECTION=sync` in .env to run synchronously |
 | `ONESIGNAL_SYNC_MODEL` | auth provider model, then `App\Models\User` | Fully-qualified model class used by `onesignal:backfill`. Only set it when your syncable model isn't the authenticated user, e.g. `App\Models\Customer` |
 
 `ONESIGNAL_ORGANIZATION_API_KEY` is also available for app-level management calls; most projects won't need it.
@@ -115,14 +115,124 @@ Sync methods:
 $user->syncToOneSignal();       // synchronous: single upsert (tags + properties + subscriptions)
 $user->syncToOneSignalAsync();  // dispatches SyncUserToOneSignal on the configured queue
 
+$user->toOneSignalPayload();       // exactly what a sync would send
+$user->oneSignalPayloadChanged();  // would a sync send something different?
+
 $user->sendPush('Your order shipped!', ['order_id' => 456]);
 
 $user->trackOneSignalEvent('purchase', ['amount' => 99.90]);
 
-$user->deleteFromOneSignal();
+$user->deleteFromOneSignal();       // synchronous
+$user->deleteFromOneSignalAsync();  // dispatches DeleteUserFromOneSignal on the configured queue
 ```
 
-`syncToOneSignalAsync()` checks `OneSignalManager::isEnabled()` before dispatching — when the package is disabled, no job is queued at all (not even a no-op job).
+Both `*Async()` methods check `OneSignalManager::isEnabled()` before dispatching — when the package is disabled, no job is queued at all (not even a no-op job). Both jobs retry 3× with a `[10, 60, 300]`-second backoff, so a transient OneSignal 5xx doesn't silently orphan a profile.
+
+### Keeping OneSignal in sync automatically
+
+```php
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Multek\OneSignal\Concerns\HasOneSignal;
+use Multek\OneSignal\Observers\OneSignalObserver;
+
+#[ObservedBy(OneSignalObserver::class)]
+class User extends Authenticatable
+{
+    use HasOneSignal;
+}
+```
+
+That is the whole integration. No field list, no `wasChanged()` guard, no
+enablement check, no queue configuration. On every save the observer asks
+`oneSignalPayloadChanged()` — which compares the payload built from the model's
+current attributes against the one built from its original attributes — and
+dispatches a sync only when they differ. Add a tag to `getOneSignalTags()` and it
+is covered the same day, with no list to update.
+
+**What the observer covers:**
+
+| Change | Covered |
+|---|---|
+| The user's own attributes (`email`, `subscription_plan`, …) | Yes |
+| The user's foreign key (`role_id` 1 → 2) | Yes |
+| A related row's content (`roles.name` renamed, user untouched) | No |
+| Many-to-many attach/detach | No |
+
+The last two fire no event on the user, so no user-side mechanism can see them —
+a hand-maintained field list misses them too. For tags derived from a relation,
+observe the related model:
+
+```php
+public function updated(Role $role): void
+{
+    if ($role->wasChanged('name')) {
+        $role->users()->chunkById(500, fn ($users) => $users->each->syncToOneSignalAsync());
+    }
+}
+```
+
+And schedule the backfill as reconciliation rather than keeping it for
+emergencies:
+
+```php
+Schedule::command('onesignal:backfill')->weekly();
+```
+
+An observer is incremental and best-effort — mass updates
+(`User::where(...)->update()`) fire no events at all. Backfill is the other half.
+Together they are complete; either alone is not. This is safe rather than merely
+hedged because the diff only decides *when* to talk to OneSignal, never *what*
+gets sent — anything missed is corrected in full by the next sync from any
+cause. `SyncUserToOneSignal` re-reads the model from the database when it runs
+(`SerializesModels` stores only the class and key, on every queue connection
+including `sync`), so a sync always sends current state, never a dispatch-time
+snapshot.
+
+**Escape hatches**, in increasing order of control: omit the attribute and call
+`User::observe(OneSignalObserver::class)` yourself; write your own observer using
+the public `oneSignalPayloadChanged()`; call `syncToOneSignalAsync()` by hand.
+
+With `SoftDeletes` the observer already does the right thing: a soft delete keeps
+the OneSignal profile, `forceDelete()` removes it, and `restored` resyncs. (The
+"Deleting on model deletion" section below recommends hooking `forceDeleted` for
+a hand-rolled `deleted` observer — that advice is for your own hooks; the shipped
+`OneSignalObserver` already handles the soft-delete/force-delete distinction via
+`isForceDeleting()` and needs nothing extra.)
+
+**Transactions:** both `SyncUserToOneSignal` and `DeleteUserFromOneSignal` are
+`afterCommit`. `saved` and `deleted` can fire inside an open `DB::transaction()`;
+without this, a worker could pick up the job and act on the row before the
+transaction commits — or after it rolls back. Dispatching from inside a
+transaction waits for the commit instead of racing it; dispatching with no open
+transaction is unaffected.
+
+### Deleting on model deletion
+
+This section is for a hand-rolled `deleted` hook of your own. If you're using
+the shipped `OneSignalObserver` (see above), it already distinguishes soft
+deletes from force deletes correctly — nothing here is needed on top of it.
+
+`deleteFromOneSignalAsync()` captures the external id eagerly, so it is safe to call from a `deleted` hook where the row is already gone:
+
+```php
+public function deleted(User $user): void
+{
+    $user->deleteFromOneSignalAsync();
+}
+```
+
+Two things to know:
+
+- A `404` from OneSignal (profile never synced, or already deleted) is treated as a completed erasure — logged at `debug` and **not** retried, so idempotent deletes don't fill `failed_jobs`.
+- With `SoftDeletes`, the `deleted` event also fires on soft deletes. If a soft delete should be reversible, hook `forceDeleted` instead — otherwise a restore leaves the user with no OneSignal profile until the next sync.
+
+Deleting by id, with no model in hand (admin tooling, GDPR/LGPD erasure of an already-removed row):
+
+```php
+use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
+
+dispatch(new DeleteUserFromOneSignal('user_123'));
+```
 
 ## Sending notifications
 
