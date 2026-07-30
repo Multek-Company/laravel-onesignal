@@ -183,11 +183,10 @@ An observer is incremental and best-effort — mass updates
 Together they are complete; either alone is not. This is safe rather than merely
 hedged because the diff only decides *when* to talk to OneSignal, never *what*
 gets sent — anything missed is corrected in full by the next sync from any
-cause. (On a real queue connection, `SyncUserToOneSignal` also re-reads the
-model from the database via `SerializesModels` before syncing; on
-`QUEUE_CONNECTION=sync` it runs inline against the in-memory model instead,
-so that extra freshness isn't universal — the diff-decides-*when* guarantee
-is.)
+cause. `SyncUserToOneSignal` re-reads the model from the database when it runs
+(`SerializesModels` stores only the class and key, on every queue connection
+including `sync`), so a sync always sends current state, never a dispatch-time
+snapshot.
 
 **Escape hatches**, in increasing order of control: omit the attribute and call
 `User::observe(OneSignalObserver::class)` yourself; write your own observer using
