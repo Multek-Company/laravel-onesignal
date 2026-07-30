@@ -5,7 +5,11 @@ All notable changes to `multek/laravel-onesignal` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] - 2026-07-29
+
+See [UPGRADE.md](UPGRADE.md#upgrading-from-21-to-22) for the three things to check before
+upgrading: a removed `protected` phone helper, both jobs becoming `afterCommit`, and direct
+`OneSignalManager` construction now following config.
 
 ### Added
 
@@ -34,8 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SyncUserToOneSignal` sets `deleteWhenMissingModels`, so a user deleted between
   dispatch and execution drops the job instead of putting a
   `ModelNotFoundException` in `failed_jobs`. ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+- Both queued jobs now dispatch after the surrounding database transaction commits.
+  Previously a worker could pick up `SyncUserToOneSignal` before the commit and sync
+  the pre-update row — and because the job succeeded, nothing retried it — or run
+  `DeleteUserFromOneSignal` for a delete that was then rolled back, leaving no
+  OneSignal profile for a row that still exists. A no-op outside a transaction.
 
 ### Changed
+
+- **Removed the `protected validatedOneSignalPhone()` helper**, replaced by
+  `normalizedOneSignalPhone()`, which returns the E.164 phone or `null` silently.
+  The non-E.164 warning now fires once from `syncToOneSignal()` instead, because the
+  payload is built twice for the resync diff and the old method would have logged
+  twice. It was never a documented extension point, but an override of it will now
+  silently stop running — see [UPGRADE.md](UPGRADE.md#upgrading-from-21-to-22).
 
 - `OneSignalManager` reads `enabled`, `app_id` and `track_events` from `config()`
   at call time instead of snapshotting them at first resolution, and resolves the
