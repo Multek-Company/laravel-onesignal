@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
 use Multek\OneSignal\OneSignalManager;
@@ -112,4 +114,24 @@ it('dispatches no delete job when disabled', function () {
     fixtureUser()->deleteFromOneSignalAsync();
 
     Bus::assertNothingDispatched();
+});
+
+it('marks the sync job so a missing model drops it instead of failing', function () {
+    config(['queue.default' => 'database']);
+
+    Schema::create('jobs', function ($table) {
+        $table->id();
+        $table->string('queue')->index();
+        $table->longText('payload');
+        $table->unsignedTinyInteger('attempts');
+        $table->unsignedInteger('reserved_at')->nullable();
+        $table->unsignedInteger('available_at');
+        $table->unsignedInteger('created_at');
+    });
+
+    fixtureUser()->syncToOneSignalAsync();
+
+    $payload = json_decode(DB::table('jobs')->value('payload'), true);
+
+    expect($payload['deleteWhenMissingModels'])->toBeTrue();
 });
