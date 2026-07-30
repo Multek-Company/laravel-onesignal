@@ -87,7 +87,6 @@ it('dispatches the sync job when enabled', function () {
 
 it('dispatches nothing when disabled', function () {
     config(['onesignal.enabled' => false]);
-    $this->app->forgetInstance(OneSignalManager::class);
     Bus::fake();
 
     fixtureUser()->syncToOneSignalAsync();
@@ -108,7 +107,6 @@ it('dispatches the delete job carrying the external id when enabled', function (
 
 it('dispatches no delete job when disabled', function () {
     config(['onesignal.enabled' => false]);
-    $this->app->forgetInstance(OneSignalManager::class);
     Bus::fake();
 
     fixtureUser()->deleteFromOneSignalAsync();

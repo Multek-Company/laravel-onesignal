@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
-use Multek\OneSignal\OneSignalManager;
 use Multek\OneSignal\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -44,7 +43,6 @@ it('dispatches nothing on dry-run', function () {
 
 it('aborts when the package is disabled', function () {
     config(['onesignal.enabled' => false]);
-    $this->app->forgetInstance(OneSignalManager::class);
     Bus::fake();
 
     $this->artisan('onesignal:backfill')
