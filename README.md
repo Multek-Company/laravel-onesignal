@@ -115,6 +115,9 @@ Sync methods:
 $user->syncToOneSignal();       // synchronous: single upsert (tags + properties + subscriptions)
 $user->syncToOneSignalAsync();  // dispatches SyncUserToOneSignal on the configured queue
 
+$user->toOneSignalPayload();       // exactly what a sync would send
+$user->oneSignalPayloadChanged();  // would a sync send something different?
+
 $user->sendPush('Your order shipped!', ['order_id' => 456]);
 
 $user->trackOneSignalEvent('purchase', ['amount' => 99.90]);
@@ -124,6 +127,70 @@ $user->deleteFromOneSignalAsync();  // dispatches DeleteUserFromOneSignal on the
 ```
 
 Both `*Async()` methods check `OneSignalManager::isEnabled()` before dispatching — when the package is disabled, no job is queued at all (not even a no-op job). Both jobs retry 3× with a `[10, 60, 300]`-second backoff, so a transient OneSignal 5xx doesn't silently orphan a profile.
+
+### Keeping OneSignal in sync automatically
+
+```php
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Multek\OneSignal\Concerns\HasOneSignal;
+use Multek\OneSignal\Observers\OneSignalObserver;
+
+#[ObservedBy(OneSignalObserver::class)]
+class User extends Authenticatable
+{
+    use HasOneSignal;
+}
+```
+
+That is the whole integration. No field list, no `wasChanged()` guard, no
+enablement check, no queue configuration. On every save the observer asks
+`oneSignalPayloadChanged()` — which compares the payload built from the model's
+current attributes against the one built from its original attributes — and
+dispatches a sync only when they differ. Add a tag to `getOneSignalTags()` and it
+is covered the same day, with no list to update.
+
+**What the observer covers:**
+
+| Change | Covered |
+|---|---|
+| The user's own attributes (`email`, `subscription_plan`, …) | Yes |
+| The user's foreign key (`role_id` 1 → 2) | Yes |
+| A related row's content (`roles.name` renamed, user untouched) | No |
+| Many-to-many attach/detach | No |
+
+The last two fire no event on the user, so no user-side mechanism can see them —
+a hand-maintained field list misses them too. For tags derived from a relation,
+observe the related model:
+
+```php
+public function updated(Role $role): void
+{
+    if ($role->wasChanged('name')) {
+        $role->users()->chunkById(500, fn ($users) => $users->each->syncToOneSignalAsync());
+    }
+}
+```
+
+And schedule the backfill as reconciliation rather than keeping it for
+emergencies:
+
+```php
+Schedule::command('onesignal:backfill')->weekly();
+```
+
+An observer is incremental and best-effort — mass updates
+(`User::where(...)->update()`) fire no events at all. Backfill is the other half.
+Together they are complete; either alone is not. This is safe rather than merely
+hedged because `SyncUserToOneSignal` rebuilds the payload from the database when
+it runs, so the diff only decides *when* to talk to OneSignal, never *what* gets
+sent — anything missed is corrected in full by the next sync from any cause.
+
+**Escape hatches**, in increasing order of control: omit the attribute and call
+`User::observe(OneSignalObserver::class)` yourself; write your own observer using
+the public `oneSignalPayloadChanged()`; call `syncToOneSignalAsync()` by hand.
+
+With `SoftDeletes` the observer already does the right thing: a soft delete keeps
+the OneSignal profile, `forceDelete()` removes it, and `restored` resyncs.
 
 ### Deleting on model deletion
 

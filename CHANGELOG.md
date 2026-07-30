@@ -16,6 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile on a transient 5xx. The job takes the external id (a string), not the model, so it
   works from a `deleted` hook after the row is gone. A `404` from OneSignal is treated as a
   completed erasure — logged at `debug`, not retried. ([#11](https://github.com/Multek-Company/laravel-onesignal/issues/11))
+- `HasOneSignal::toOneSignalPayload()` and `oneSignalPayloadChanged()` — the sync
+  payload as a first-class value, plus a derived answer to "does this save need a
+  resync?". Replaces hand-maintained watched-attribute lists in consuming apps:
+  a new tag or getter is covered the day it is added. Both sides of the diff are
+  built from clones with relations cleared, so a changed foreign key is detected
+  even when the relation was already eager-loaded.
+- `Observers\OneSignalObserver` — attach with
+  `#[ObservedBy(OneSignalObserver::class)]` and the whole app-side integration is
+  that one attribute. Handles create, update, delete (leaving soft-deleted
+  profiles intact until `forceDelete()`) and restore. See the README for what it
+  covers and what still needs an observer on the related model.
+  ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+
+### Fixed
+
+- `SyncUserToOneSignal` sets `deleteWhenMissingModels`, so a user deleted between
+  dispatch and execution drops the job instead of putting a
+  `ModelNotFoundException` in `failed_jobs`. ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
+
+### Changed
+
+- `OneSignalManager` reads `enabled`, `app_id` and `track_events` from `config()`
+  at call time instead of snapshotting them at first resolution, and resolves the
+  SDK client on first use. Constructor arguments still override config, so direct
+  construction is unchanged. Tests no longer need
+  `app()->forgetInstance(OneSignalManager::class)` to observe a config change.
+  ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
 
 ## [2.1.0] - 2026-07-29
 
