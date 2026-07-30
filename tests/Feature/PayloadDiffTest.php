@@ -78,3 +78,27 @@ it('omits a non-E164 phone from the payload without logging', function () {
 
     Log::shouldNotHaveReceived('warning');
 });
+
+it('reports no change when the save touched nothing OneSignal cares about', function () {
+    $user = payloadUser(['name' => 'Ana']);
+    $user->syncOriginal();
+
+    $user->name = 'Ana Maria';
+
+    expect($user->oneSignalPayloadChanged())->toBeFalse();
+});
+
+it('reports a change when a tag-mapped attribute changed', function () {
+    config(['onesignal.default_tags' => ['plan' => 'subscription_plan']]);
+
+    $user = payloadUser(['subscription_plan' => 'free']);
+    $user->syncOriginal();
+
+    $user->subscription_plan = 'pro';
+
+    expect($user->oneSignalPayloadChanged())->toBeTrue();
+});
+
+it('reports a change for a model that was never saved', function () {
+    expect(payloadUser()->oneSignalPayloadChanged())->toBeTrue();
+});

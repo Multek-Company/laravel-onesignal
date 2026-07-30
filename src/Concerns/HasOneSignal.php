@@ -132,6 +132,49 @@ trait HasOneSignal
     }
 
     /**
+     * Would a sync right now send something different from what the model
+     * looked like before this save?
+     *
+     * Derived, never declared — no watched-attribute list to fall out of date
+     * when a new tag or getter is added.
+     */
+    public function oneSignalPayloadChanged(): bool
+    {
+        $current = $this->oneSignalPayloadFrom($this->getAttributes());
+        $previous = $this->oneSignalPayloadFrom($this->getOriginal());
+
+        if ($current === $previous) {
+            return false;
+        }
+
+        Log::debug('OneSignal payload changed', [
+            'external_id' => $current['external_id'],
+            'changed' => array_keys(array_diff_assoc(
+                array_map('serialize', $current),
+                array_map('serialize', $previous),
+            )),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Build a payload from an arbitrary attribute set.
+     *
+     * Both sides of the diff go through here so each one re-resolves relations
+     * against its own foreign keys — a tag closure reading $user->role->name
+     * would otherwise see the live model's already-loaded relation on both
+     * sides and miss the change.
+     */
+    protected function oneSignalPayloadFrom(array $attributes): array
+    {
+        return (clone $this)
+            ->setRawAttributes($attributes, sync: true)
+            ->setRelations([])
+            ->toOneSignalPayload();
+    }
+
+    /**
      * Sync the full profile in a single upsert call:
      * tags + native properties + Email/SMS subscriptions.
      */
