@@ -39,8 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `OneSignalManager` reads `enabled`, `app_id` and `track_events` from `config()`
   at call time instead of snapshotting them at first resolution, and resolves the
-  SDK client on first use. Constructor arguments still override config, so direct
-  construction is unchanged. Tests no longer need
+  SDK client on first use. Constructor arguments still override config, so
+  passing an explicit `enabled:` argument behaves as before; constructing
+  without one now follows `onesignal.enabled` (default `true`) instead of
+  always forcing `true`, so only a consumer relying on that forced-`true`
+  default is affected. Tests no longer need
   `app()->forgetInstance(OneSignalManager::class)` to observe a config change.
   ([#12](https://github.com/Multek-Company/laravel-onesignal/issues/12))
 

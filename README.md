@@ -181,18 +181,37 @@ Schedule::command('onesignal:backfill')->weekly();
 An observer is incremental and best-effort — mass updates
 (`User::where(...)->update()`) fire no events at all. Backfill is the other half.
 Together they are complete; either alone is not. This is safe rather than merely
-hedged because `SyncUserToOneSignal` rebuilds the payload from the database when
-it runs, so the diff only decides *when* to talk to OneSignal, never *what* gets
-sent — anything missed is corrected in full by the next sync from any cause.
+hedged because the diff only decides *when* to talk to OneSignal, never *what*
+gets sent — anything missed is corrected in full by the next sync from any
+cause. (On a real queue connection, `SyncUserToOneSignal` also re-reads the
+model from the database via `SerializesModels` before syncing; on
+`QUEUE_CONNECTION=sync` it runs inline against the in-memory model instead,
+so that extra freshness isn't universal — the diff-decides-*when* guarantee
+is.)
 
 **Escape hatches**, in increasing order of control: omit the attribute and call
 `User::observe(OneSignalObserver::class)` yourself; write your own observer using
 the public `oneSignalPayloadChanged()`; call `syncToOneSignalAsync()` by hand.
 
 With `SoftDeletes` the observer already does the right thing: a soft delete keeps
-the OneSignal profile, `forceDelete()` removes it, and `restored` resyncs.
+the OneSignal profile, `forceDelete()` removes it, and `restored` resyncs. (The
+"Deleting on model deletion" section below recommends hooking `forceDeleted` for
+a hand-rolled `deleted` observer — that advice is for your own hooks; the shipped
+`OneSignalObserver` already handles the soft-delete/force-delete distinction via
+`isForceDeleting()` and needs nothing extra.)
+
+**Transactions:** both `SyncUserToOneSignal` and `DeleteUserFromOneSignal` are
+`afterCommit`. `saved` and `deleted` can fire inside an open `DB::transaction()`;
+without this, a worker could pick up the job and act on the row before the
+transaction commits — or after it rolls back. Dispatching from inside a
+transaction waits for the commit instead of racing it; dispatching with no open
+transaction is unaffected.
 
 ### Deleting on model deletion
+
+This section is for a hand-rolled `deleted` hook of your own. If you're using
+the shipped `OneSignalObserver` (see above), it already distinguishes soft
+deletes from force deletes correctly — nothing here is needed on top of it.
 
 `deleteFromOneSignalAsync()` captures the external id eagerly, so it is safe to call from a `deleted` hook where the row is already gone:
 
