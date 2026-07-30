@@ -140,8 +140,25 @@ trait HasOneSignal
      */
     public function oneSignalPayloadChanged(): bool
     {
+        if ($this->getRawOriginal() === []) {
+            // Nothing to compare against (Eloquent fires `saved` before
+            // syncOriginal(), so a create() sees an empty original). A fresh
+            // record always needs a sync, and evaluating a user-supplied tag
+            // closure — possibly walking a relation, per the two-sided-clone
+            // support above — against an attribute-less model isn't safe to
+            // ask of them.
+            return true;
+        }
+
         $current = $this->oneSignalPayloadFrom($this->getAttributes());
-        $previous = $this->oneSignalPayloadFrom($this->getOriginal());
+        // getRawOriginal(), not getOriginal(): getOriginal() with no key runs
+        // every value through transformModelValue(), applying casts and
+        // Attribute accessors a second time. For array/json/encrypted casts
+        // or non-idempotent custom accessors that corrupts the "previous"
+        // side (TypeError, DecryptException, or a silently wrong diff).
+        // getRawOriginal() returns $this->original untouched — the same raw
+        // shape getAttributes() gives the current side above.
+        $previous = $this->oneSignalPayloadFrom($this->getRawOriginal());
 
         if ($current === $previous) {
             return false;
