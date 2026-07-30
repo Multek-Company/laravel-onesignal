@@ -26,14 +26,7 @@ class OneSignalServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(OneSignalManager::class, function ($app) {
-            $appId = (string) (config('onesignal.app_id') ?? '');
-
-            return new OneSignalManager(
-                api: $app->make(DefaultApi::class),
-                appId: $appId,
-                enabled: (bool) config('onesignal.enabled', true) && trim($appId) !== '',
-                trackEvents: (bool) config('onesignal.track_events', false),
-            );
+            return new OneSignalManager(api: $app->make(DefaultApi::class));
         });
 
         $this->app->singleton(OneSignalChannel::class, function ($app) {

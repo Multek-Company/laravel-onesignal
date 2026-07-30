@@ -347,3 +347,59 @@ describe('event tracking guard', function () {
         $this->manager->trackEvent('u1', 'purchase', ['amount' => 50]);
     });
 });
+
+describe('lazy config reads', function () {
+    it('reflects onesignal.enabled changed after the manager was resolved', function () {
+        $this->app->instance(DefaultApi::class, $this->api);
+        $manager = app(OneSignalManager::class);
+
+        expect($manager->isEnabled())->toBeTrue();
+
+        config(['onesignal.enabled' => false]);
+
+        expect($manager->isEnabled())->toBeFalse();
+    });
+
+    it('reflects an emptied app_id after the manager was resolved', function () {
+        $this->app->instance(DefaultApi::class, $this->api);
+        $manager = app(OneSignalManager::class);
+
+        expect($manager->isEnabled())->toBeTrue();
+
+        config(['onesignal.app_id' => '']);
+
+        expect($manager->isEnabled())->toBeFalse()
+            ->and($manager->getAppId())->toBe('');
+    });
+
+    it('reflects track_events turned on after the manager was resolved', function () {
+        config(['onesignal.track_events' => false]);
+        $this->app->instance(DefaultApi::class, $this->api);
+        $manager = app(OneSignalManager::class);
+
+        config(['onesignal.track_events' => true]);
+        $this->api->shouldReceive('createCustomEvents')->once();
+
+        $manager->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
+
+    it('lets constructor arguments override config', function () {
+        config([
+            'onesignal.enabled' => true,
+            'onesignal.app_id' => 'from-config',
+            'onesignal.track_events' => true,
+        ]);
+
+        $disabled = new OneSignalManager($this->api, 'explicit-id', enabled: false);
+
+        expect($disabled->isEnabled())->toBeFalse()
+            ->and($disabled->getAppId())->toBe('explicit-id');
+
+        $untracked = new OneSignalManager($this->api, 'explicit-id', trackEvents: false);
+        $this->api->shouldNotReceive('createCustomEvents');
+        Log::shouldReceive('debug')->once()
+            ->with(Mockery::pattern('/event tracking disabled/'));
+
+        $untracked->trackEvent('u1', 'purchase', ['amount' => 50]);
+    });
+});
