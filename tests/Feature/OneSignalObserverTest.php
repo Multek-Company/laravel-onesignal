@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Schema;
 use Multek\OneSignal\Jobs\DeleteUserFromOneSignal;
 use Multek\OneSignal\Jobs\SyncUserToOneSignal;
 use Multek\OneSignal\Observers\OneSignalObserver;
+use Multek\OneSignal\Tests\Fixtures\RelationTaggedUser;
+use Multek\OneSignal\Tests\Fixtures\Role;
 use Multek\OneSignal\Tests\Fixtures\SoftDeletingUser;
 use Multek\OneSignal\Tests\Fixtures\User;
 
@@ -80,6 +82,30 @@ it('keeps the profile on a soft delete and removes it on a force delete', functi
 
     $user->forceDelete();
     Bus::assertDispatchedTimes(DeleteUserFromOneSignal::class, 1);
+});
+
+it('dispatches a sync when a relation-tagged model is created', function () {
+    Schema::create('roles', function ($table) {
+        $table->id();
+        $table->string('name');
+    });
+
+    Schema::table('users', function ($table) {
+        $table->foreignId('role_id')->nullable();
+    });
+
+    Role::query()->insert(['id' => 1, 'name' => 'member']);
+
+    RelationTaggedUser::observe(OneSignalObserver::class);
+
+    Bus::fake();
+
+    // On create, Eloquent fires `saved` before syncOriginal(), so the
+    // "previous" side of the diff is built from an empty attribute set. A
+    // relation-walking tag getter must not blow up against that.
+    RelationTaggedUser::create(['email' => 'ana@example.com', 'role_id' => 1]);
+
+    Bus::assertDispatchedTimes(SyncUserToOneSignal::class, 1);
 });
 
 it('dispatches a sync when a soft-deleted model is restored', function () {

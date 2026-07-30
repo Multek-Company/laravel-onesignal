@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Multek\OneSignal\Tests\Fixtures\CastingUser;
 use Multek\OneSignal\Tests\Fixtures\RelationTaggedUser;
 use Multek\OneSignal\Tests\Fixtures\Role;
 use Multek\OneSignal\Tests\Fixtures\User;
@@ -130,6 +131,28 @@ it('detects a foreign key change even when the relation was eagerly loaded', fun
     expect($user->toOneSignalPayload()['tags'])->toBe(['role' => 'member']);
 
     $user->role_id = 2;
+
+    expect($user->oneSignalPayloadChanged())->toBeTrue();
+});
+
+it('diffs correctly when a payload-relevant attribute uses a cast', function () {
+    Schema::create('users', function ($table) {
+        $table->id();
+        $table->string('email')->nullable();
+        $table->string('phone')->nullable();
+        $table->json('prefs')->nullable();
+    });
+
+    config(['onesignal.default_tags' => [
+        'prefs_count' => fn ($u) => (string) count($u->prefs ?? []),
+    ]]);
+
+    // create() persists and syncs original, so the "previous" side of the
+    // diff is non-empty and the clone path in oneSignalPayloadFrom() is
+    // actually exercised (a never-saved model would short-circuit instead).
+    $user = CastingUser::create(['email' => 'ana@example.com', 'prefs' => ['a', 'b']]);
+
+    $user->prefs = ['a', 'b', 'c'];
 
     expect($user->oneSignalPayloadChanged())->toBeTrue();
 });
