@@ -104,21 +104,54 @@ trait HasOneSignal
     }
 
     /**
+     * The exact profile OneSignal receives on sync: identity, segmentation
+     * tags, native properties and delivery subscriptions.
+     *
+     * Tags and properties are key-sorted so two payloads can be compared
+     * regardless of the order an override built them in.
+     */
+    public function toOneSignalPayload(): array
+    {
+        $tags = $this->getOneSignalTags();
+        $properties = array_filter([
+            'language' => $this->getOneSignalLanguage(),
+            'timezone_id' => $this->getOneSignalTimezone(),
+            'country' => $this->getOneSignalCountry(),
+        ], fn ($value) => $value !== null);
+
+        ksort($tags);
+        ksort($properties);
+
+        return [
+            'external_id' => $this->getOneSignalExternalId(),
+            'tags' => $tags,
+            'properties' => $properties,
+            'email' => $this->getOneSignalEmail(),
+            'phone' => $this->normalizedOneSignalPhone(),
+        ];
+    }
+
+    /**
      * Sync the full profile in a single upsert call:
      * tags + native properties + Email/SMS subscriptions.
      */
     public function syncToOneSignal(): void
     {
+        $payload = $this->toOneSignalPayload();
+        $phone = $this->getOneSignalPhone();
+
+        if ($phone !== null && $payload['phone'] === null) {
+            Log::warning("OneSignal: phone '{$phone}' is not E.164, omitting SMS subscription", [
+                'external_id' => $payload['external_id'],
+            ]);
+        }
+
         app(OneSignalManager::class)->createUser(
-            $this->getOneSignalExternalId(),
-            $this->getOneSignalTags(),
-            array_filter([
-                'language' => $this->getOneSignalLanguage(),
-                'timezone_id' => $this->getOneSignalTimezone(),
-                'country' => $this->getOneSignalCountry(),
-            ], fn ($value) => $value !== null),
-            $this->getOneSignalEmail(),
-            $this->validatedOneSignalPhone(),
+            $payload['external_id'],
+            $payload['tags'],
+            $payload['properties'],
+            $payload['email'],
+            $payload['phone'],
         );
     }
 
@@ -189,9 +222,11 @@ trait HasOneSignal
     }
 
     /**
-     * Validate and return E.164 phone, or null with a warning if invalid.
+     * The phone if it is E.164, otherwise null. Silent by design — the
+     * warning belongs to the send path, so building a payload twice for a
+     * diff does not double-log.
      */
-    protected function validatedOneSignalPhone(): ?string
+    protected function normalizedOneSignalPhone(): ?string
     {
         $phone = $this->getOneSignalPhone();
 
@@ -199,14 +234,6 @@ trait HasOneSignal
             return null;
         }
 
-        if (! preg_match('/^\+[1-9]\d{6,14}$/', $phone)) {
-            Log::warning("OneSignal: phone '{$phone}' is not E.164, omitting SMS subscription", [
-                'external_id' => $this->getOneSignalExternalId(),
-            ]);
-
-            return null;
-        }
-
-        return $phone;
+        return preg_match('/^\+[1-9]\d{6,14}$/', $phone) ? $phone : null;
     }
 }
