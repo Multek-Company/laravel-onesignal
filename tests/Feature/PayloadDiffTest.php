@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Multek\OneSignal\Tests\Fixtures\RelationTaggedUser;
+use Multek\OneSignal\Tests\Fixtures\Role;
 use Multek\OneSignal\Tests\Fixtures\User;
 
 function payloadUser(array $attributes = []): User
@@ -101,4 +104,32 @@ it('reports a change when a tag-mapped attribute changed', function () {
 
 it('reports a change for a model that was never saved', function () {
     expect(payloadUser()->oneSignalPayloadChanged())->toBeTrue();
+});
+
+it('detects a foreign key change even when the relation was eagerly loaded', function () {
+    Schema::create('roles', function ($table) {
+        $table->id();
+        $table->string('name');
+    });
+
+    Schema::create('users', function ($table) {
+        $table->id();
+        $table->string('email')->nullable();
+        $table->string('phone')->nullable();
+        $table->foreignId('role_id');
+    });
+
+    Role::query()->insert([
+        ['id' => 1, 'name' => 'member'],
+        ['id' => 2, 'name' => 'admin'],
+    ]);
+
+    $user = RelationTaggedUser::create(['email' => 'ana@example.com', 'role_id' => 1]);
+    $user->load('role');
+
+    expect($user->toOneSignalPayload()['tags'])->toBe(['role' => 'member']);
+
+    $user->role_id = 2;
+
+    expect($user->oneSignalPayloadChanged())->toBeTrue();
 });
